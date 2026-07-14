@@ -31,6 +31,11 @@ export function buildDashboardMetrics(overrides?: Partial<DashboardMetrics>): Da
     documentationQuality: 93.1,
     aiConfidence: 90.4,
     revenueLeakagePrevented: 18400,
+    revenueProtected: 24800,
+    revenueLeakage: 6200,
+    denialRisk: 14.5,
+    careGapClosure: 68,
+    clinicalProductivity: 88,
     ...overrides,
   };
 }

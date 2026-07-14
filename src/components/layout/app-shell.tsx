@@ -8,6 +8,9 @@ import {
   Activity,
   BarChart3,
   ClipboardPlus,
+  DollarSign,
+  FileCheck2,
+  HeartPulse,
   History,
   LayoutDashboard,
   LogOut,
@@ -15,6 +18,7 @@ import {
   MessageSquareText,
   Moon,
   Settings,
+  ShieldAlert,
   Sun,
   Bell,
   PanelLeftClose,
@@ -40,14 +44,56 @@ import type { AuthSession, AppSettings } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const NAV = [
+const PRIMARY_NAV = [
+  {
+    href: "/encounters/new",
+    label: "Clinical Documentation",
+    icon: ClipboardPlus,
+  },
+  {
+    href: "/claim-readiness",
+    label: "Claim Readiness",
+    icon: ShieldAlert,
+  },
+  {
+    href: "/revenue",
+    label: "Revenue Cycle",
+    icon: DollarSign,
+  },
+  {
+    href: "/prior-auth",
+    label: "Prior Authorization",
+    icon: FileCheck2,
+  },
+  {
+    href: "/care-gaps",
+    label: "Care Gaps",
+    icon: HeartPulse,
+  },
+] as const;
+
+const SECONDARY_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/encounters/new", label: "New Encounter", icon: ClipboardPlus },
   { href: "/encounters", label: "History", icon: History },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/ask", label: "Ask Operyx AI", icon: MessageSquareText },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
+
+function isPrimaryActive(href: string, pathname: string) {
+  if (href === "/encounters/new") return pathname.startsWith("/encounters/new");
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isSecondaryActive(href: string, pathname: string) {
+  if (href === "/encounters") {
+    return (
+      pathname === "/encounters" ||
+      (pathname.startsWith("/encounters/") && !pathname.startsWith("/encounters/new"))
+    );
+  }
+  return pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -68,14 +114,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         router.replace("/login");
         return;
       }
+      const saved = getSettings();
       setSession(s);
-      setSettings(getSettings());
+      setSettings(saved);
+      if (saved.theme) setTheme(saved.theme);
       setChecking(false);
     })();
     return () => {
       mounted = false;
     };
-  }, [router, pathname]);
+  }, [router, pathname, setTheme]);
 
   async function handleLogout() {
     await logout();
@@ -111,32 +159,67 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </div>
-      <nav className="flex-1 space-y-1 px-2">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active =
-            href === "/encounters"
-              ? pathname === "/encounters" ||
-                (pathname.startsWith("/encounters/") && !pathname.startsWith("/encounters/new"))
-              : pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                active
-                  ? "bg-primary/12 text-primary"
-                  : "text-sidebar-foreground/80 hover:bg-secondary/70 hover:text-foreground",
-                collapsed && "justify-center px-2"
-              )}
-              title={label}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{label}</span>}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-4 overflow-y-auto px-2 pb-4">
+        <div className="space-y-1">
+          {!collapsed && (
+            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Core workflows
+            </p>
+          )}
+          {PRIMARY_NAV.map(({ href, label, icon: Icon }) => {
+            const active = isPrimaryActive(href, pathname);
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary/12 text-primary"
+                    : "text-sidebar-foreground/80 hover:bg-secondary/70 hover:text-foreground",
+                  collapsed && "justify-center px-2"
+                )}
+                title={label}
+                aria-label={label}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span className="leading-snug">{label}</span>}
+              </Link>
+            );
+          })}
+        </div>
+        <div className="space-y-1 border-t border-border/60 pt-3">
+          {!collapsed && (
+            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Workspace
+            </p>
+          )}
+          {SECONDARY_NAV.map(({ href, label, icon: Icon }) => {
+            const active = isSecondaryActive(href, pathname);
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary/12 text-primary"
+                    : "text-sidebar-foreground/80 hover:bg-secondary/70 hover:text-foreground",
+                  collapsed && "justify-center px-2"
+                )}
+                title={label}
+                aria-label={label}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span>{label}</span>}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
       {!collapsed && (
         <div className="border-t border-border/60 p-4">
@@ -236,7 +319,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2 px-2">
+                <Button variant="ghost" className="gap-2 px-2" aria-label="Account menu">
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-primary/15 text-primary text-xs">
                       {doctor

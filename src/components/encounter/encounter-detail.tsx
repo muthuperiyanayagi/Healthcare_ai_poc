@@ -2,57 +2,138 @@
 
 import { format } from "date-fns";
 import type { Encounter } from "@/lib/types";
+import { getSettings } from "@/stores/local-store";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CodingTable, CdsAlertList } from "@/components/encounter/ai-output-panels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function EncounterPrintReport({ encounter }: { encounter: Encounter }) {
+  const settings = getSettings();
+  const hospital = settings.hospitalName || "Operyx Memorial Hospital";
+  const doctor = settings.doctorName || "Dr. Sarah Chen";
+  const organization = settings.organization || "Operyx Health Network";
+
   return (
     <div id="print-report" className="hidden print:block">
-      <h1 style={{ fontSize: 22, marginBottom: 4 }}>Operyx AI Clinical Report</h1>
-      <p style={{ marginBottom: 16, color: "#555" }} suppressHydrationWarning>
-        Generated {format(new Date(encounter.updatedAt || encounter.createdAt), "PPpp")} · Human
-        review required
-      </p>
-      <h2>
-        {encounter.patientName} · {encounter.age}y · {encounter.gender}
-      </h2>
-      <p>
-        <strong>Chief complaint:</strong> {encounter.chiefComplaint}
-      </p>
-      <p>
-        <strong>Status:</strong> {encounter.status}
-      </p>
+      <header className="print-header">
+        <div>
+          <h1>{hospital}</h1>
+          <p className="print-subtitle">{organization} · Operyx AI Clinical Intelligence</p>
+        </div>
+        <div className="print-meta">
+          <p>Clinical Documentation Report</p>
+          <p suppressHydrationWarning>
+            Generated {format(new Date(encounter.updatedAt || encounter.createdAt), "PPpp")}
+          </p>
+          <p>Human review required before filing</p>
+        </div>
+      </header>
+
+      <section className="print-section">
+        <h2>Patient</h2>
+        <p>
+          <strong>{encounter.patientName}</strong> · {encounter.age}y · {encounter.gender}
+        </p>
+        <p>
+          <strong>Chief complaint:</strong> {encounter.chiefComplaint}
+        </p>
+        <p>
+          <strong>Status:</strong> {encounter.status}
+          {encounter.aiConfidence != null ? ` · AI confidence ${encounter.aiConfidence}%` : ""}
+          {encounter.documentationQuality != null
+            ? ` · Doc quality ${encounter.documentationQuality}%`
+            : ""}
+        </p>
+      </section>
+
       {encounter.documentation ? (
         <>
-          <h3>SOAP</h3>
-          <p>
-            <strong>S:</strong> {encounter.documentation.soap.subjective}
-          </p>
-          <p>
-            <strong>O:</strong> {encounter.documentation.soap.objective}
-          </p>
-          <p>
-            <strong>A:</strong> {encounter.documentation.soap.assessment}
-          </p>
-          <p>
-            <strong>P:</strong> {encounter.documentation.soap.plan}
-          </p>
-          <h3>Clinical summary</h3>
-          <p>{encounter.documentation.clinicalSummary}</p>
-          <h3>Treatment plan</h3>
-          <p>{encounter.documentation.treatmentPlan}</p>
-          <h3>Follow-up</h3>
-          <p>{encounter.documentation.followUpPlan}</p>
+          <section className="print-section">
+            <h2>Clinical summary</h2>
+            <p>{encounter.documentation.clinicalSummary}</p>
+            {encounter.documentation.clinicalContextSummary ? (
+              <p>{encounter.documentation.clinicalContextSummary}</p>
+            ) : null}
+          </section>
+
+          <section className="print-section">
+            <h2>SOAP</h2>
+            <p>
+              <strong>S:</strong> {encounter.documentation.soap.subjective}
+            </p>
+            <p>
+              <strong>O:</strong> {encounter.documentation.soap.objective}
+            </p>
+            <p>
+              <strong>A:</strong> {encounter.documentation.soap.assessment}
+            </p>
+            <p>
+              <strong>P:</strong> {encounter.documentation.soap.plan}
+            </p>
+          </section>
+
+          <section className="print-section">
+            <h2>Assessment & plan</h2>
+            <p>
+              <strong>Assessment:</strong> {encounter.documentation.assessment}
+            </p>
+            <p>
+              <strong>Treatment:</strong> {encounter.documentation.treatmentPlan}
+            </p>
+            <p>
+              <strong>Follow-up:</strong> {encounter.documentation.followUpPlan}
+            </p>
+            {encounter.documentation.patientInstructions ? (
+              <p>
+                <strong>Patient instructions:</strong> {encounter.documentation.patientInstructions}
+              </p>
+            ) : null}
+            {encounter.documentation.providerNotes ? (
+              <p>
+                <strong>Provider notes:</strong> {encounter.documentation.providerNotes}
+              </p>
+            ) : null}
+          </section>
+
+          {encounter.documentation.differentialDiagnosis?.length ? (
+            <section className="print-section">
+              <h2>Differential diagnosis</h2>
+              <ul>
+                {encounter.documentation.differentialDiagnosis.map((dx) => (
+                  <li key={dx.condition}>
+                    {dx.condition} ({dx.likelihood})
+                    {dx.icd10Hint ? ` — ${dx.icd10Hint}` : ""}: {dx.rationale}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {encounter.documentation.medicalNecessitySummary ? (
+            <section className="print-section">
+              <h2>Medical necessity</h2>
+              <p>{encounter.documentation.medicalNecessitySummary.summary}</p>
+            </section>
+          ) : null}
         </>
       ) : null}
+
       {encounter.coding ? (
-        <>
+        <section className="print-section">
+          <h2>Coding summary</h2>
+          <p>
+            Confidence {encounter.coding.confidence}% · Completeness {encounter.coding.completeness}% ·
+            Claim readiness {encounter.coding.claimReadiness}%
+            {encounter.coding.estimatedAccuracy != null
+              ? ` · Estimated accuracy ${encounter.coding.estimatedAccuracy}%`
+              : ""}
+          </p>
           <h3>ICD-10</h3>
           <ul>
             {encounter.coding.icd10.map((c) => (
               <li key={c.code}>
                 {c.code} — {c.description}
+                {c.explanation ? ` (${c.explanation})` : ""}
               </li>
             ))}
           </ul>
@@ -61,11 +142,66 @@ export function EncounterPrintReport({ encounter }: { encounter: Encounter }) {
             {encounter.coding.cpt.map((c) => (
               <li key={c.code}>
                 {c.code} — {c.description}
+                {c.explanation ? ` (${c.explanation})` : ""}
               </li>
             ))}
           </ul>
-        </>
+          {encounter.coding.hcpcs?.length ? (
+            <>
+              <h3>HCPCS</h3>
+              <ul>
+                {encounter.coding.hcpcs.map((c) => (
+                  <li key={c.code}>
+                    {c.code} — {c.description}
+                    {c.explanation ? ` (${c.explanation})` : ""}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {encounter.documentation?.codingExplanation ? (
+            <p>
+              <strong>Coding explanation:</strong> {encounter.documentation.codingExplanation}
+            </p>
+          ) : null}
+        </section>
       ) : null}
+
+      {(encounter.executiveSummary || encounter.coding?.codingRecommendations?.length) && (
+        <section className="print-section">
+          <h2>Recommendations</h2>
+          {encounter.executiveSummary ? <p>{encounter.executiveSummary.narrative}</p> : null}
+          {encounter.executiveSummary?.actionItems?.length ? (
+            <ul>
+              {encounter.executiveSummary.actionItems.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          ) : null}
+          {encounter.coding?.codingRecommendations?.map((r) => (
+            <p key={r.id}>
+              <strong>{r.title}:</strong> {r.detail}
+            </p>
+          ))}
+        </section>
+      )}
+
+      <footer className="print-signature">
+        <div className="signature-block">
+          <p className="signature-line" />
+          <p>
+            <strong>{doctor}</strong>
+          </p>
+          <p>Attending / Authorizing Clinician</p>
+          <p suppressHydrationWarning>Date: {format(new Date(), "PP")}</p>
+        </div>
+        <div className="signature-block">
+          <p className="muted">
+            Generated with Operyx AI Clinical Intelligence. AI suggestions require clinician
+            verification. Not a substitute for professional medical judgment.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -105,12 +241,27 @@ export function EncounterDetailView({ encounter }: { encounter: Encounter }) {
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <Detail label="Clinical summary" value={encounter.documentation.clinicalSummary} />
+            {encounter.documentation.clinicalContextSummary ? (
+              <Detail
+                label="Clinical context"
+                value={encounter.documentation.clinicalContextSummary}
+              />
+            ) : null}
             <Detail label="SOAP Subjective" value={encounter.documentation.soap.subjective} />
             <Detail label="SOAP Objective" value={encounter.documentation.soap.objective} />
             <Detail label="SOAP Assessment" value={encounter.documentation.soap.assessment} />
             <Detail label="SOAP Plan" value={encounter.documentation.soap.plan} />
             <Detail label="Treatment plan" value={encounter.documentation.treatmentPlan} />
             <Detail label="Follow-up" value={encounter.documentation.followUpPlan} />
+            {encounter.documentation.patientInstructions ? (
+              <Detail
+                label="Patient instructions"
+                value={encounter.documentation.patientInstructions}
+              />
+            ) : null}
+            {encounter.documentation.providerNotes ? (
+              <Detail label="Provider notes" value={encounter.documentation.providerNotes} />
+            ) : null}
           </CardContent>
         </Card>
       ) : null}

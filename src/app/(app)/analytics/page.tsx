@@ -32,7 +32,12 @@ export default function AnalyticsPage() {
         description="Interactive trends for encounters, coding accuracy, time saved, revenue, claim readiness, and documentation quality."
       />
       {loading || !series ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div
+          className="grid gap-4 lg:grid-cols-2"
+          aria-busy="true"
+          aria-live="polite"
+          aria-label="Loading analytics"
+        >
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-80 w-full rounded-2xl" />
           ))}

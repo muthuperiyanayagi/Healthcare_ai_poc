@@ -80,20 +80,340 @@ export const SEED_ENCOUNTERS: Encounter[] = [
         "Start metformin 500 mg PO BID with meals; continue amlodipine; consider ACE inhibitor at follow-up; diabetic diet, exercise counseling; refer to diabetes education.",
       followUpPlan:
         "Return in 2 weeks for medication tolerance and glucose review. Recheck BMP, lipids, urine microalbumin in 4–6 weeks. Ophthalmology referral within 1 year.",
+      clinicalContextSummary:
+        "John Smith (57y male) has a 3-week progressive osmotic symptom complex with unintentional weight loss and known hypertension on amlodipine. Objective data show BMI 31.2, BP above goal, and diagnostic hyperglycemia (HbA1c 8.4%, fasting glucose 186). Clinical priority is safe antihyperglycemic initiation, BP optimization, ASCVD risk reduction, and guideline-directed screening.",
+      differentialDiagnosis: [
+        {
+          condition: "Type 2 diabetes mellitus with hyperglycemia",
+          likelihood: "high",
+          rationale:
+            "Classic osmotic triad, unintentional weight loss, HbA1c 8.4%, and fasting glucose 186 mg/dL meet diagnostic thresholds.",
+          supportingFindings: ["HbA1c 8.4%", "Fasting glucose 186 mg/dL", "Polyuria/polydipsia × 3 weeks"],
+          icd10Hint: "E11.9",
+        },
+        {
+          condition: "Uncontrolled essential hypertension",
+          likelihood: "high",
+          rationale: "Office BP 148/92 with known hypertension on amlodipine monotherapy.",
+          supportingFindings: ["BP 148/92", "History of hypertension since 2018"],
+          icd10Hint: "I10",
+        },
+      ],
+      clinicalReasoning: {
+        summary:
+          "Presentation maps to new type 2 diabetes with symptomatic hyperglycemia. Concurrent uncontrolled hypertension and obesity elevate ASCVD risk.",
+        pathways: [
+          "ADA diagnostic pathway: HbA1c ≥6.5% with clinical correlation",
+          "Metformin first-line if eGFR adequate",
+          "Cardiometabolic risk bundling",
+        ],
+        evidenceLinks: ["ADA Standards of Care", "ACC/AHA BP guideline"],
+        confidence: 92,
+      },
+      medicalNecessitySummary: {
+        summary:
+          "Office visit, HbA1c assay, and diabetes education are medically necessary given new hyperglycemia with symptomatic burden.",
+        justifiedServices: ["99214-level E/M", "HbA1c (83036)", "Diabetes education referral"],
+        supportingDocumentation: ["Osmotic symptoms", "HbA1c 8.4%", "Exam and vitals"],
+        gaps: ["Pending BMP/eGFR before metformin titration"],
+        score: 88,
+      },
+      medicationReview: [
+        {
+          medication: "Amlodipine 5 mg daily",
+          status: "continue",
+          notes: "Continue CCB; BP above goal — consider ACE/ARB at follow-up.",
+        },
+        {
+          medication: "Metformin 500 mg PO BID with meals",
+          status: "start",
+          notes: "First-line antihyperglycemic if eGFR ≥45.",
+        },
+      ],
+      patientInstructions:
+        "Start metformin with food as directed. Check fingerstick glucose as taught and bring a log to follow-up. Limit sugary drinks and seek urgent care for severe weakness, vomiting, confusion, or glucose persistently above 300 mg/dL.",
+      providerNotes:
+        "Discussed new diabetes diagnosis, lifestyle intervention, and metformin plan contingent on renal labs. Patient agreed to diabetes education referral.",
+      codingExplanation:
+        "E11.9 supported by diagnostic HbA1c and symptoms; I10 from elevated BP with known hypertension; 99214 justified by moderate MDM; 83036 reflects HbA1c; G0108 if DSMT delivered.",
+      documentationCompletenessScore: 91,
     },
     coding: {
       icd10: [
-        { code: "E11.9", description: "Type 2 diabetes mellitus without complications", confidence: 96 },
-        { code: "I10", description: "Essential (primary) hypertension", confidence: 94 },
-        { code: "E66.9", description: "Obesity, unspecified", confidence: 82 },
+        {
+          code: "E11.9",
+          description: "Type 2 diabetes mellitus without complications",
+          confidence: 96,
+          explanation: "Diagnostic HbA1c 8.4% plus osmotic symptoms establish T2DM without documented complications today.",
+        },
+        {
+          code: "I10",
+          description: "Essential (primary) hypertension",
+          confidence: 94,
+          explanation: "Known hypertension with office BP 148/92 supports active I10 coding.",
+        },
+        {
+          code: "E66.9",
+          description: "Obesity, unspecified",
+          confidence: 82,
+          explanation: "BMI 31.2 meets obesity threshold.",
+        },
       ],
       cpt: [
-        { code: "99214", description: "Office/outpatient visit, established, moderate MDM", confidence: 90 },
-        { code: "83036", description: "Hemoglobin A1c", confidence: 98 },
+        {
+          code: "99214",
+          description: "Office/outpatient visit, established, moderate MDM",
+          confidence: 90,
+          explanation: "Moderate MDM supported by new chronic illness plus Rx management.",
+        },
+        {
+          code: "83036",
+          description: "Hemoglobin A1c",
+          confidence: 98,
+          explanation: "HbA1c resulted/reviewed and medically necessary for diagnosis.",
+        },
+      ],
+      hcpcs: [
+        {
+          code: "G0108",
+          description: "Diabetes outpatient self-management training, individual, per 30 minutes",
+          confidence: 84,
+          explanation: "Bill when individual DSMT is furnished with attendance documentation.",
+        },
       ],
       confidence: 93,
       completeness: 91,
       claimReadiness: 88,
+      estimatedAccuracy: 92,
+      diagnosisConfidence: 94,
+      procedureConfidence: 90,
+      medicalNecessityValidation: {
+        isSupported: true,
+        score: 88,
+        justifiedServices: ["99214", "83036"],
+        unsupportedServices: [],
+        notes: "Medical necessity is strong for E/M and HbA1c; confirm DSMT delivery before G0108.",
+      },
+      documentationValidation: {
+        isComplete: true,
+        score: 91,
+        missingElements: ["Final eGFR before metformin dose escalation"],
+        strengths: ["Symptom chronology", "Diagnostic labs", "Assessment/plan specificity"],
+        notes: "Documentation supports claim submission after renal lab acknowledgment.",
+      },
+      codingRecommendations: [
+        {
+          id: "rec_js_1",
+          priority: "high",
+          title: "Link medical necessity to HbA1c",
+          detail: "Tie osmotic symptoms and new T2DM assessment explicitly to CPT 83036.",
+          relatedCodes: ["E11.9", "83036"],
+        },
+      ],
+    },
+    claimReadinessDetail: {
+      score: 88,
+      status: "ready",
+      checklist: [
+        {
+          id: "chk_js_1",
+          label: "Diagnosis specificity",
+          status: "pass",
+          detail: "E11.9 and I10 are supported by labs and vitals.",
+        },
+        {
+          id: "chk_js_2",
+          label: "Pending labs",
+          status: "warn",
+          detail: "BMP/eGFR pending — annotate in claim notes if billed today.",
+        },
+      ],
+      missingElements: ["Final eGFR annotation"],
+      recommendations: [
+        "Attach HbA1c result to claim documentation packet",
+        "Verify DSMT HCPCS only if education encounter occurred",
+      ],
+      estimatedDenialRisk: 12,
+      summary:
+        "Claim is near ready: diabetes and hypertension coding are well supported. Resolve renal-lab annotation before final submit.",
+    },
+    denialRisk: {
+      overallRisk: 14,
+      riskLevel: "low",
+      topDenialReasons: [
+        {
+          id: "den_js_1",
+          reason: "Insufficient linkage of labs to diagnosis",
+          contribution: 28,
+          severity: "moderate",
+          mitigation: "Explicitly document HbA1c review in assessment and claim notes.",
+        },
+      ],
+      mitigationActions: ["Complete claim readiness checklist", "Attach diagnostic lab evidence"],
+      confidence: 89,
+      summary: "Estimated denial risk 14% for the diabetes claim package.",
+    },
+    careGaps: {
+      gaps: [
+        {
+          id: "gap_js_1",
+          category: "labs",
+          severity: "critical",
+          title: "HbA1c follow-up overdue / monitoring plan missing",
+          detail:
+            "Diagnostic HbA1c is 8.4% with fasting glucose 186 mg/dL, but no 3-month repeat A1c or structured glycemic monitoring order is documented in the plan.",
+          recommendedAction:
+            "Order follow-up HbA1c in ~90 days and document SMBG review at the 2-week follow-up.",
+          measureId: "HEDIS-CDC-HbA1c",
+          dueBy: "2026-10-12",
+        },
+        {
+          id: "gap_js_2",
+          category: "screening",
+          severity: "warning",
+          title: "Retinal exam overdue",
+          detail:
+            "New T2DM with intermittent blurred vision; ADA recommends dilated retinal evaluation near diagnosis, and no ophthalmology referral is on file.",
+          recommendedAction: "Place ophthalmology / dilated retinal exam referral and track completion.",
+          measureId: "HEDIS-CDC-Eye",
+          dueBy: "2026-09-15",
+        },
+        {
+          id: "gap_js_3",
+          category: "screening",
+          severity: "warning",
+          title: "Foot exam overdue",
+          detail:
+            "Encounter notes state neuropathy screen was deferred; comprehensive diabetic foot exam (visual, pulses, monofilament) remains incomplete.",
+          recommendedAction:
+            "Complete foot exam today or schedule podiatry within 30 days; document risk category.",
+          measureId: "HEDIS-CDC-Foot",
+          dueBy: "2026-08-01",
+        },
+        {
+          id: "gap_js_4",
+          category: "labs",
+          severity: "warning",
+          title: "Kidney function screening overdue",
+          detail:
+            "BMP/eGFR is still pending and urine albumin-creatinine ratio has not been ordered despite new T2DM diagnosis.",
+          recommendedAction: "Order urine ACR with BMP/eGFR (and lipids) at next lab draw.",
+          measureId: "HEDIS-CDC-Nephropathy",
+          dueBy: "2026-07-28",
+        },
+        {
+          id: "gap_js_5",
+          category: "immunization",
+          severity: "warning",
+          title: "Vaccination overdue",
+          detail:
+            "Pneumococcal, influenza, hepatitis B, and COVID immunization status are not reconciled for a newly diagnosed adult with diabetes.",
+          recommendedAction:
+            "Reconcile immunization history and offer indicated vaccines before or at follow-up.",
+          measureId: "HEDIS-Imm",
+          dueBy: "2026-08-15",
+        },
+        {
+          id: "gap_js_6",
+          category: "prevention",
+          severity: "info",
+          title: "Cancer screening overdue",
+          detail:
+            "Age 57 male — colorectal cancer screening status (FIT/colonoscopy) is not documented alongside the diabetes intake workup.",
+          recommendedAction: "Document CRC screening status and order FIT or colonoscopy referral if due.",
+          measureId: "HEDIS-COL",
+          dueBy: "2026-11-30",
+        },
+        {
+          id: "gap_js_7",
+          category: "adherence",
+          severity: "warning",
+          title: "Medication adherence at risk",
+          detail:
+            "Metformin is being initiated and amlodipine continues with BP 148/92; no adherence counseling, pill burden review, or refill monitoring plan is documented.",
+          recommendedAction:
+            "Counsel on metformin tolerability, set adherence check at 2-week visit, and consider ACE-I for BP/renal protection.",
+          measureId: "PDC-Diabetes",
+          dueBy: "2026-07-28",
+        },
+        {
+          id: "gap_js_8",
+          category: "counseling",
+          severity: "info",
+          title: "Lifestyle counselling due",
+          detail:
+            "BMI 31.2 with new T2DM — medical nutrition therapy, activity prescription, and diabetes self-management training referral are incomplete in the closure checklist.",
+          recommendedAction:
+            "Complete lifestyle counseling and place DSME / dietitian referral; provide written patient instructions.",
+          measureId: "HEDIS-CDC-Education",
+          dueBy: "2026-08-05",
+        },
+      ],
+      closureRate: 48,
+      priorityCount: 6,
+      summary:
+        "Eight open care gaps for John Smith's new T2DM pathway: HbA1c monitoring, retinal and foot exams, kidney labs, vaccinations, colorectal screening, medication adherence, and lifestyle counselling.",
+    },
+    priorAuth: {
+      required: false,
+      status: "not_required",
+      services: [
+        {
+          code: "83036",
+          description: "HbA1c",
+          likelyRequired: false,
+          payerCriteria: "Typically covered without PA.",
+        },
+      ],
+      documentationChecklist: ["Diagnostic HbA1c / glucose values", "Current medications"],
+      requiredDocuments: ["Office visit note", "Lab results (HbA1c)", "Medication list"],
+      missingDocuments: [],
+      payerHints: ["Metformin and E/M services do not require prior auth"],
+      coverageSummary:
+        "E/M visit and diagnostic HbA1c are covered without prospective prior authorization under standard outpatient benefits.",
+      medicalNecessitySummary:
+        "Hyperglycemia workup and diabetes management are medically necessary given osmotic symptoms and HbA1c 8.4%.",
+      estimatedApprovalProbability: 94,
+      estimatedTurnaroundDays: 0,
+      summary: "No prior authorization required for today's core diabetes visit and HbA1c.",
+    },
+    revenuePrediction: {
+      estimatedCharge: 286,
+      expectedReimbursement: 214,
+      revenueAtRisk: 32,
+      revenueProtected: 240,
+      leakageRisk: 7,
+      kpiSummary: {
+        netCollectionsRate: 94.2,
+        daysInAR: 28,
+        denialRate: 4.8,
+        firstPassYield: 91.5,
+        revenueProtectedMtd: 24800,
+        revenueLeakageMtd: 6200,
+      },
+      summary: "Expected professional reimbursement ~$214 with modest at-risk dollars if claim hygiene slips.",
+    },
+    productivity: {
+      documentationMinutesSaved: 18,
+      encountersPerHourEquivalent: 2.7,
+      productivityIndex: 92,
+      benchmarkComparison: "Documentation time saved (~18 min) lifts productivity above clinic baseline.",
+    },
+    executiveSummary: {
+      headline: "New type 2 diabetes with strong documentation/coding support and actionable care gaps",
+      clinicalHighlights: [
+        "New T2DM with HbA1c 8.4% and osmotic symptoms",
+        "Uncontrolled hypertension and obesity co-managed",
+      ],
+      codingHighlights: ["E11.9 / I10 / 99214 / 83036 with explanations", "Claim readiness 88%"],
+      revenueHighlights: ["Revenue protected ≈ $240", "Denial risk low at 14%"],
+      actionItems: [
+        "Annotate pending eGFR",
+        "Schedule ophthalmology referral",
+        "Order urine ACR",
+      ],
+      narrative:
+        "John Smith's encounter is clinically coherent: osmotic symptoms plus HbA1c establish T2DM, coding is explainable, claim readiness is high with minor lab/education hygiene items, and care gaps around eye exam and nephropathy labs should be closed next.",
     },
     cds: {
       alerts: [

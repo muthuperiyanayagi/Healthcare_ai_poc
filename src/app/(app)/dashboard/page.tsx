@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Brain,
+  Activity,
   ClipboardCheck,
   Clock3,
   DollarSign,
   FileText,
   Gauge,
+  HeartPulse,
+  ShieldAlert,
   Sparkles,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -61,7 +64,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title="Clinical Dashboard"
-        description="Real-time documentation quality, coding accuracy, and claim readiness across today's panel."
+        description="Real-time documentation quality, coding accuracy, claim readiness, and revenue protection across today's panel."
         actions={
           <Button asChild>
             <Link href="/encounters/new">
@@ -81,7 +84,7 @@ export default function DashboardPage() {
           transition={{ duration: 0.25 }}
           className="space-y-6"
         >
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <KpiCard
               title="Patients Today"
               value={metrics.patientsToday}
@@ -90,12 +93,12 @@ export default function DashboardPage() {
               delay={0.02}
             />
             <KpiCard
-              title="AI Notes Generated"
+              title="SOAP Notes"
               value={metrics.aiNotesGenerated}
               icon={FileText}
               accent="accent"
-              subtitle="Documented with AI"
-              delay={0.05}
+              subtitle="AI clinical notes generated"
+              delay={0.04}
             />
             <KpiCard
               title="Time Saved"
@@ -103,14 +106,14 @@ export default function DashboardPage() {
               icon={Clock3}
               accent="success"
               subtitle="Clinician documentation"
-              delay={0.08}
+              delay={0.06}
             />
             <KpiCard
               title="Coding Accuracy"
               value={formatPercent(metrics.codingAccuracy, 1)}
               icon={ClipboardCheck}
               subtitle="Suggested code confidence"
-              delay={0.11}
+              delay={0.08}
             />
             <KpiCard
               title="Claim Readiness"
@@ -118,30 +121,46 @@ export default function DashboardPage() {
               icon={Gauge}
               accent="accent"
               subtitle="Billing completeness"
+              delay={0.1}
+            />
+            <KpiCard
+              title="Revenue Protected"
+              value={formatCurrency(metrics.revenueProtected ?? metrics.revenueLeakagePrevented)}
+              icon={TrendingUp}
+              accent="success"
+              subtitle="AI coding defense (MTD)"
+              delay={0.12}
+            />
+            <KpiCard
+              title="Revenue Leakage"
+              value={formatCurrency(metrics.revenueLeakage ?? 0)}
+              icon={DollarSign}
+              accent="warning"
+              subtitle="Remaining exposure (MTD)"
               delay={0.14}
             />
             <KpiCard
-              title="Documentation Quality"
-              value={formatPercent(metrics.documentationQuality, 1)}
-              icon={Brain}
-              accent="success"
-              subtitle="SOAP completeness score"
-              delay={0.17}
-            />
-            <KpiCard
-              title="AI Confidence"
-              value={formatPercent(metrics.aiConfidence, 1)}
-              icon={Sparkles}
-              subtitle="Model certainty average"
-              delay={0.2}
-            />
-            <KpiCard
-              title="Revenue Leakage Prevented"
-              value={formatCurrency(metrics.revenueLeakagePrevented)}
-              icon={DollarSign}
+              title="Denial Risk"
+              value={formatPercent(metrics.denialRisk ?? 0, 1)}
+              icon={ShieldAlert}
               accent="warning"
-              subtitle="Under-coding recovery (MTD)"
-              delay={0.23}
+              subtitle="Avg predicted denial risk"
+              delay={0.16}
+            />
+            <KpiCard
+              title="Care Gap Closure"
+              value={formatPercent(metrics.careGapClosure ?? 0, 1)}
+              icon={HeartPulse}
+              accent="accent"
+              subtitle="Quality measure progress"
+              delay={0.18}
+            />
+            <KpiCard
+              title="Clinical Productivity"
+              value={formatPercent(metrics.clinicalProductivity ?? 0, 1)}
+              icon={Activity}
+              subtitle="Provider productivity index"
+              delay={0.2}
             />
           </div>
 

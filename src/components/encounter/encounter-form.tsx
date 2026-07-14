@@ -26,13 +26,13 @@ export type EncounterFormValues = EncounterInput & {
 
 export const EMPTY_ENCOUNTER_INPUT: EncounterFormValues = {
   patientName: "",
-  age: 45,
-  gender: "female",
+  age: 0,
+  gender: "unknown",
   chiefComplaint: "",
   historyOfPresentIllness: "",
   pastMedicalHistory: "",
   medications: "",
-  allergies: "NKDA",
+  allergies: "",
   vitals: "",
   examFindings: "",
   labs: "",
@@ -64,6 +64,21 @@ export function toEncounterInput(values: EncounterFormValues): EncounterInput {
   };
 }
 
+function isEncounterFormComplete(value: EncounterFormValues) {
+  return (
+    value.patientName.trim().length > 0 &&
+    Number.isFinite(value.age) &&
+    value.age > 0 &&
+    Boolean(value.gender) &&
+    value.chiefComplaint.trim().length > 0 &&
+    value.pastMedicalHistory.trim().length > 0 &&
+    value.medications.trim().length > 0 &&
+    value.allergies.trim().length > 0 &&
+    value.assessmentNotes.trim().length > 0 &&
+    value.voiceTranscript.trim().length > 0
+  );
+}
+
 export function EncounterForm({
   value,
   onChange,
@@ -85,6 +100,8 @@ export function EncounterForm({
       voiceTranscript: JOHN_SMITH_VOICE_TRANSCRIPT,
     });
   }
+
+  const canGenerate = isEncounterFormComplete(value);
 
   return (
     <Card>
@@ -109,6 +126,7 @@ export function EncounterForm({
               value={value.patientName}
               onChange={(e) => set("patientName", e.target.value)}
               placeholder="Full name"
+              required
             />
           </div>
           <div className="space-y-2">
@@ -116,10 +134,11 @@ export function EncounterForm({
             <Input
               id="age"
               type="number"
-              min={0}
+              min={1}
               max={120}
-              value={value.age}
+              value={value.age || ""}
               onChange={(e) => set("age", Number(e.target.value) || 0)}
+              required
             />
           </div>
           <div className="space-y-2">
@@ -143,32 +162,42 @@ export function EncounterForm({
           value={value.chiefComplaint}
           onChange={(v) => set("chiefComplaint", v)}
           rows={2}
+          required
         />
         <Field
           label="Medical History"
           value={value.pastMedicalHistory}
           onChange={(v) => set("pastMedicalHistory", v)}
           rows={3}
+          required
         />
         <div className="grid gap-4 md:grid-cols-2">
           <Field
             label="Current Medications"
             value={value.medications}
             onChange={(v) => set("medications", v)}
+            required
           />
-          <Field label="Allergies" value={value.allergies} onChange={(v) => set("allergies", v)} />
+          <Field
+            label="Allergies"
+            value={value.allergies}
+            onChange={(v) => set("allergies", v)}
+            required
+          />
         </div>
         <Field
           label="Doctor Notes"
           value={value.assessmentNotes}
           onChange={(v) => set("assessmentNotes", v)}
           rows={3}
+          required
         />
         <Field
           label="Voice Transcript"
           value={value.voiceTranscript}
           onChange={(v) => set("voiceTranscript", v)}
           rows={4}
+          required
         />
 
         <div className="grid gap-4 border-t border-border/60 pt-5 md:grid-cols-2">
@@ -188,11 +217,19 @@ export function EncounterForm({
           <Field label="Labs / diagnostics" value={value.labs} onChange={(v) => set("labs", v)} />
         </div>
 
+        {!canGenerate ? (
+          <p className="text-xs text-muted-foreground">
+            Complete Patient Name, Age, Gender, Chief Complaint, Medical History, Current Medications,
+            Allergies, Doctor Notes, and Voice Transcript to generate documentation — or use the John
+            Smith preset.
+          </p>
+        ) : null}
+
         <Button
           type="button"
           size="lg"
           className="w-full md:w-auto"
-          disabled={generating || !value.patientName.trim() || !value.chiefComplaint.trim()}
+          disabled={generating || !canGenerate}
           onClick={onGenerate}
         >
           <Sparkles className="h-4 w-4" />
@@ -208,11 +245,13 @@ function Field({
   value,
   onChange,
   rows = 2,
+  required,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   rows?: number;
+  required?: boolean;
 }) {
   const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return (
@@ -223,6 +262,7 @@ function Field({
         rows={rows}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        required={required}
       />
     </div>
   );

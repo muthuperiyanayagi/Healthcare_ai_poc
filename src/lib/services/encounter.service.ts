@@ -80,7 +80,15 @@ export async function createEncounter(
     cds: generated.cds,
     aiConfidence: generated.aiConfidence,
     documentationQuality: generated.documentationQuality,
-    timeSavedMinutes: 10 + Math.round(Math.random() * 16),
+    timeSavedMinutes:
+      generated.documentationTimeSavedMinutes ?? 10 + Math.round(Math.random() * 16),
+    claimReadinessDetail: generated.claimReadinessDetail,
+    denialRisk: generated.denialRisk,
+    revenuePrediction: generated.revenuePrediction,
+    careGaps: generated.careGaps,
+    priorAuth: generated.priorAuth,
+    productivity: generated.productivity,
+    executiveSummary: generated.executiveSummary,
   };
   return saveEncounter(encounter);
 }

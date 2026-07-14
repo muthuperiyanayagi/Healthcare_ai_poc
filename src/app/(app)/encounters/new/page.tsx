@@ -77,6 +77,14 @@ export default function NewEncounterPage() {
           cds: result.cds,
           aiConfidence: result.aiConfidence,
           documentationQuality: result.documentationQuality,
+          timeSavedMinutes: result.documentationTimeSavedMinutes,
+          claimReadinessDetail: result.claimReadinessDetail,
+          denialRisk: result.denialRisk,
+          revenuePrediction: result.revenuePrediction,
+          careGaps: result.careGaps,
+          priorAuth: result.priorAuth,
+          productivity: result.productivity,
+          executiveSummary: result.executiveSummary,
         } satisfies Encounter);
       const bundle = await exportFhirBundle(draft);
       downloadJson(
@@ -109,14 +117,22 @@ export default function NewEncounterPage() {
         cds: result.cds,
         aiConfidence: result.aiConfidence,
         documentationQuality: result.documentationQuality,
+        timeSavedMinutes: result.documentationTimeSavedMinutes,
+        claimReadinessDetail: result.claimReadinessDetail,
+        denialRisk: result.denialRisk,
+        revenuePrediction: result.revenuePrediction,
+        careGaps: result.careGaps,
+        priorAuth: result.priorAuth,
+        productivity: result.productivity,
+        executiveSummary: result.executiveSummary,
       }
     : null;
 
   return (
     <div>
       <PageHeader
-        title="New encounter"
-        description="Generate SOAP notes, coding suggestions, and clinical decision support"
+        title="AI Clinical Documentation & Coding"
+        description="Generate SOAP notes, clinical intelligence, coding with explanations, and decision support"
       />
 
       <div className="space-y-6">

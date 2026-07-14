@@ -5,7 +5,7 @@ const KEYS = {
   encounters: "operyx.encounters",
   settings: "operyx.settings",
   session: "operyx.session",
-  seeded: "operyx.seeded.v1",
+  seeded: "operyx.seeded.v2",
 } as const;
 
 function canUseStorage(): boolean {

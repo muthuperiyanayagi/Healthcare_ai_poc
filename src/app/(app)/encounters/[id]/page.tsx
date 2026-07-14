@@ -199,6 +199,14 @@ function toAiResult(encounter: Encounter): AiGenerationResult | null {
     cds: encounter.cds,
     aiConfidence: encounter.aiConfidence ?? 0,
     documentationQuality: encounter.documentationQuality ?? 0,
+    claimReadinessDetail: encounter.claimReadinessDetail,
+    denialRisk: encounter.denialRisk,
+    revenuePrediction: encounter.revenuePrediction,
+    careGaps: encounter.careGaps,
+    priorAuth: encounter.priorAuth,
+    productivity: encounter.productivity,
+    documentationTimeSavedMinutes: encounter.timeSavedMinutes,
+    executiveSummary: encounter.executiveSummary,
   };
 }
 
