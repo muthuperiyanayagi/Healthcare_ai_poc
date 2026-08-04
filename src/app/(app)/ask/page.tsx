@@ -11,6 +11,18 @@ export default function AskPage() {
 
   useEffect(() => {
     let mounted = true;
+
+    // Record HIPAA audit log for Ask AI session activation
+    fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "view_ask_ai",
+        entity: "ask_ai",
+        details: "Clinician opened Ask AI chatbot and clinical querying assistant",
+      }),
+    }).catch((err) => console.warn("Failed to submit audit log:", err));
+
     listEncounters({ page: 1, pageSize: 20 }).then((res) => {
       if (!mounted) return;
       const john = res.items.find((e) => e.patientName === "John Smith");

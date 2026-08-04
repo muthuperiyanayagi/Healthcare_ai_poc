@@ -20,7 +20,7 @@ import {
   runPriorAuthAssessment,
 } from "@/lib/services/prior-auth.service";
 import type { PriorAuthAssessment } from "@/lib/types";
-import { getEncounterById } from "@/stores/local-store";
+import { getEncounter } from "@/lib/services/encounter.service";
 
 export default function PriorAuthPage() {
   const [queueLoading, setQueueLoading] = useState(true);
@@ -41,6 +41,18 @@ export default function PriorAuthPage() {
 
   useEffect(() => {
     let mounted = true;
+
+    // Record HIPAA audit log for prior auth workspace access
+    fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "view_prior_auth",
+        entity: "prior_auth",
+        details: "Clinician opened Prior Authorization assistant and queue",
+      }),
+    }).catch((err) => console.warn("Failed to submit audit log:", err));
+
     listPriorAuthQueue()
       .then((data) => {
         if (mounted) setQueue(data);
@@ -77,114 +89,112 @@ export default function PriorAuthPage() {
     }
   }
 
-  function handleAssessFromQueue(item: {
+  async function handleAssessFromQueue(item: {
     encounterId: string;
     patientName: string;
     summary: string;
   }) {
-    const encounter = getEncounterById(item.encounterId);
-    if (!encounter) {
-      toast.error("Encounter not found in local store");
-      return;
+    setAssessing(true);
+    try {
+      const encounter = await getEncounter(item.encounterId);
+      const values: PriorAuthFormValues = {
+        patientName: encounter.patientName,
+        age: encounter.age.toString(),
+        gender: encounter.gender,
+        chiefComplaint: encounter.chiefComplaint,
+        historyOfPresentIllness: encounter.historyOfPresentIllness,
+        pastMedicalHistory: encounter.pastMedicalHistory || "",
+        medications: encounter.medications || "",
+        allergies: encounter.allergies || "",
+        vitals: encounter.vitals || "",
+        examFindings: encounter.examFindings || "",
+        labs: encounter.labs || "",
+        assessmentNotes: encounter.assessmentNotes || "",
+        cptCodes: encounter.coding?.cpt?.[0]?.code ?? "99214",
+      };
+      setFormDefaults(values);
+      setFormKey((k) => k + 1);
+      
+      const input = toPriorAuthEncounterInput(values);
+      const result = await runPriorAuthAssessment(input);
+      setAssessment(result);
+      setLastContext(values);
+      toast.success(
+        result.required
+          ? "Prior authorization likely required — review checklist"
+          : "No prior authorization required for current services"
+      );
+      refreshQueue();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load or assess encounter details");
+    } finally {
+      setAssessing(false);
     }
-
-    const defaults: Partial<PriorAuthFormValues> = {
-      patientName: encounter.patientName,
-      age: encounter.age,
-      gender: encounter.gender,
-      insurancePayer: "UnitedHealthcare",
-      insurancePlan: "Commercial PPO",
-      memberId: `MBR-${encounter.id.slice(-6).toUpperCase()}`,
-      procedureCode: encounter.coding?.cpt?.[0]?.code ?? "99214",
-      procedureDescription:
-        encounter.coding?.cpt?.[0]?.description ?? encounter.chiefComplaint,
-      clinicalJustification:
-        encounter.assessmentNotes ||
-        encounter.historyOfPresentIllness ||
-        encounter.chiefComplaint,
-      referralFileName: undefined,
-    };
-
-    setFormDefaults(defaults);
-    setFormKey((k) => k + 1);
-    setAssessment(encounter.priorAuth ?? null);
-    setLastContext({
-      patientName: defaults.patientName!,
-      age: defaults.age!,
-      gender: defaults.gender!,
-      insurancePayer: defaults.insurancePayer!,
-      insurancePlan: defaults.insurancePlan!,
-      memberId: defaults.memberId!,
-      procedureCode: defaults.procedureCode!,
-      procedureDescription: defaults.procedureDescription!,
-      clinicalJustification: defaults.clinicalJustification!,
-      referralFileName: undefined,
-    });
-    toast.message("Queue encounter loaded — run assessment to refresh AI outputs");
   }
 
   return (
-    <div>
-      <PageHeader
-        title="AI Prior Authorization Assistant"
-        description="Assess referral, insurance, and procedure context for coverage, medical necessity, document gaps, and approval probability — then work the live PA queue."
-        actions={
-          <Button asChild variant="outline">
-            <Link href="/encounters/new">Open Clinical Documentation</Link>
-          </Button>
-        }
-      />
+    <div className="grid gap-6 lg:grid-cols-3">
+      <div className="lg:col-span-2 space-y-6">
+        <PageHeader
+          title="Prior Authorization Assistant"
+          description="Instant payer policy validation, clinical rules verification, auto-generated coverage documentation, and checklist matching."
+        />
 
-      {queueLoading || !queue ? (
-        <div className="space-y-4" aria-busy="true" aria-live="polite" aria-label="Loading prior authorization">
-          <Skeleton className="h-28 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      ) : (
-        <div className="space-y-6">
+        {queueLoading ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Skeleton className="h-28" />
+            <Skeleton className="h-28" />
+            <Skeleton className="h-28" />
+          </div>
+        ) : queue ? (
           <div className="grid gap-4 sm:grid-cols-3">
             <KpiCard
-              title="Pending review"
+              title="Pending Review"
               value={queue.pendingReview}
-              subtitle="Likely required or submitted"
-              icon={ShieldAlert}
+              icon={ClipboardList}
               accent="warning"
             />
             <KpiCard
-              title="Not required"
-              value={queue.notRequired}
-              subtitle="Clear to proceed"
-              icon={FileCheck2}
-              accent="success"
-              delay={0.05}
+              title="Likely Required"
+              value={queue.likelyRequired}
+              icon={ShieldAlert}
+              accent="accent"
             />
             <KpiCard
-              title="Likely required"
-              value={queue.likelyRequired}
-              subtitle="Needs PA workflow"
-              icon={ClipboardList}
-              accent="primary"
-              delay={0.1}
+              title="Not Required"
+              value={queue.notRequired}
+              icon={FileCheck2}
+              accent="success"
             />
           </div>
+        ) : null}
 
-          <div className="grid gap-6 xl:grid-cols-2">
-            <PriorAuthForm
-              key={formKey}
-              defaultValues={formDefaults}
-              onSubmit={handleAssess}
-              generating={assessing}
-            />
-            <PriorAuthResults
-              assessment={assessment}
-              loading={assessing}
-              context={lastContext}
-            />
-          </div>
+        <PriorAuthForm
+          key={formKey}
+          onSubmit={handleAssess}
+          isLoading={assessing}
+          defaultValues={formDefaults}
+        />
 
-          <PriorAuthQueue items={queue.items} onAssessEncounter={handleAssessFromQueue} />
-        </div>
-      )}
+        {assessment && lastContext && (
+          <PriorAuthResults assessment={assessment} context={lastContext} />
+        )}
+      </div>
+
+      <div className="space-y-6">
+        {queueLoading ? (
+          <Skeleton className="h-[500px] w-full" />
+        ) : (
+          queue && (
+            <PriorAuthQueue
+              items={queue.items}
+              onAssess={handleAssessFromQueue}
+              activeEncounterId={lastContext?.patientName}
+            />
+          )
+        )}
+      </div>
     </div>
   );
 }

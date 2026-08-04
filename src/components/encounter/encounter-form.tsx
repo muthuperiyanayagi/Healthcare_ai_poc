@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +15,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EncounterInput, Gender } from "@/lib/types";
 import { JOHN_SMITH_PRESET } from "@/lib/mock/seed";
-import { Sparkles, UserRound } from "lucide-react";
+import { Sparkles, UserRound, Loader2, Check } from "lucide-react";
+import { SpeechToTextRecorder } from "@/components/shared/speech-to-text-recorder";
 
 /** John Smith demo dialogue — merged into HPI for generators when preset is applied. */
 const JOHN_SMITH_VOICE_TRANSCRIPT =
@@ -90,9 +92,74 @@ export function EncounterForm({
   onGenerate: () => void;
   generating?: boolean;
 }) {
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [justSelected, setJustSelected] = useState(false);
+
   function set<K extends keyof EncounterFormValues>(key: K, v: EncounterFormValues[K]) {
     onChange({ ...value, [key]: v });
   }
+
+  // Trigger live search as user types Patient Name
+  useEffect(() => {
+    if (justSelected) {
+      setJustSelected(false);
+      return;
+    }
+
+    const q = value.patientName.trim();
+    if (!q || q.length < 2) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/patients/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data);
+          setShowDropdown(data.length > 0);
+        }
+      } catch (err) {
+        console.error("Patient autocomplete search error:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+  }, [value.patientName, justSelected]);
+
+  const selectPatient = (patient: any) => {
+    setJustSelected(true);
+    
+    // Normalize gender string (e.g. "Male" or "M") to lowercase to match Select options
+    let normalizedGender: Gender = "unknown";
+    const g = (patient.gender || "").toLowerCase();
+    if (g === "male" || g === "m") {
+      normalizedGender = "male";
+    } else if (g === "female" || g === "f") {
+      normalizedGender = "female";
+    } else if (g === "other" || g === "o") {
+      normalizedGender = "other";
+    }
+
+    onChange({
+      ...value,
+      patientName: patient.name,
+      age: patient.age,
+      gender: normalizedGender,
+      pastMedicalHistory: patient.pastMedicalHistory || value.pastMedicalHistory,
+      medications: patient.medications || value.medications,
+      allergies: patient.allergies || value.allergies,
+    });
+    setSearchResults([]);
+    setShowDropdown(false);
+  };
 
   function applyJohnSmithPreset() {
     onChange({
@@ -119,15 +186,47 @@ export function EncounterForm({
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2 md:col-span-1">
+          <div className="relative space-y-2 md:col-span-1">
             <Label htmlFor="patientName">Patient Name</Label>
-            <Input
-              id="patientName"
-              value={value.patientName}
-              onChange={(e) => set("patientName", e.target.value)}
-              placeholder="Full name"
-              required
-            />
+            <div className="relative">
+              <Input
+                id="patientName"
+                value={value.patientName}
+                onChange={(e) => set("patientName", e.target.value)}
+                placeholder="Type to search patients..."
+                required
+              />
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
+
+            {showDropdown && (
+              <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover text-popover-foreground shadow-lg outline-none max-h-60 overflow-y-auto">
+                <div className="p-1">
+                  {searchResults.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // Prevent input blur from interrupting
+                        selectPatient(p);
+                      }}
+                      className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-left"
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-medium">{p.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {p.gender.toUpperCase()} • {p.age} yrs {p.mrn ? `• MRN: ${p.mrn}` : ""}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="age">Age</Label>
@@ -192,13 +291,23 @@ export function EncounterForm({
           rows={3}
           required
         />
-        <Field
-          label="Voice Transcript"
-          value={value.voiceTranscript}
-          onChange={(v) => set("voiceTranscript", v)}
-          rows={4}
-          required
-        />
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="voice-transcript">Voice Transcript / Audio Recording</Label>
+          </div>
+          <SpeechToTextRecorder
+            currentTranscript={value.voiceTranscript}
+            onTranscriptChange={(v) => set("voiceTranscript", v)}
+          />
+          <Textarea
+            id="voice-transcript"
+            rows={4}
+            value={value.voiceTranscript}
+            onChange={(e) => set("voiceTranscript", e.target.value)}
+            placeholder="Click 'Start Live Dictation' to dictate directly into this field, or upload an audio recording..."
+            required
+          />
+        </div>
 
         <div className="grid gap-4 border-t border-border/60 pt-5 md:grid-cols-2">
           <Field

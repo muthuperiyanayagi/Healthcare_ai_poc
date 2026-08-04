@@ -1,11 +1,18 @@
 import type { ChatMessage, Encounter } from "@/lib/types";
-import { getEncounters } from "@/stores/local-store";
+import { listEncounters, getEncounter } from "./encounter.service";
 import { randomDelay, uid } from "@/lib/utils";
 
-function contextEncounter(preferredId?: string): Encounter | undefined {
-  const all = getEncounters();
-  if (preferredId) return all.find((e) => e.id === preferredId) ?? all[0];
-  return all[0];
+async function contextEncounter(preferredId?: string): Promise<Encounter | undefined> {
+  try {
+    if (preferredId) {
+      return await getEncounter(preferredId);
+    }
+    const { items: all } = await listEncounters({ pageSize: 1 });
+    return all[0];
+  } catch (err) {
+    console.warn("Failed to load encounter context for chat:", err);
+    return undefined;
+  }
 }
 
 function matchResponse(message: string, enc?: Encounter): string {
@@ -43,6 +50,7 @@ function matchResponse(message: string, enc?: Encounter): string {
         ? `Overall coding confidence ${enc.coding.confidence}% · Claim readiness ${enc.coding.claimReadiness}%.`
         : "",
       ``,
+      ``,
       `These codes are suggestions based on documented findings and require clinician validation.`,
     ].join("\n");
   }
@@ -71,7 +79,7 @@ function matchResponse(message: string, enc?: Encounter): string {
 
   if (q.includes("investigat") || q.includes("lab") || q.includes("test")) {
     const alerts =
-      enc?.cds?.alerts.filter((a) => a.category === "investigation" || a.category === "missing_labs") ??
+      enc?.cds?.alerts.filter((a) => a.category === "investigation" || a.category === "missing_labs")  ??
       [];
     if (alerts.length) {
       return [
@@ -150,12 +158,20 @@ export async function askOperyx(
   message: string,
   encounterId?: string
 ): Promise<ChatMessage> {
-  await randomDelay(900, 1800);
-  const enc = contextEncounter(encounterId);
+  const enc = await contextEncounter(encounterId);
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, encounter: enc }),
+  });
+  if (!response.ok) {
+    throw new Error("Chat request failed");
+  }
+  const data = await response.json();
   return {
     id: uid("msg"),
     role: "assistant",
-    content: matchResponse(message, enc),
+    content: data.content,
     createdAt: new Date().toISOString(),
   };
 }

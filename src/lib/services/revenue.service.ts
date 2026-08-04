@@ -6,13 +6,8 @@ import type {
   RevenuePrediction,
 } from "@/lib/types";
 import { generateExecutiveSummary, predictRevenue } from "@/lib/services/ai.service";
-import { getEncounters } from "@/stores/local-store";
+import { listEncounters, getEncounter } from "./encounter.service";
 import { randomDelay } from "@/lib/utils";
-
-/**
- * Phase B service surface — Revenue Cycle Command Center
- * FastAPI-shaped routes under /api/v1/revenue/*
- */
 
 export type RevenueLeakageRow = {
   encounterId: string;
@@ -150,7 +145,8 @@ function buildQualityTrends(
 /** GET /api/v1/revenue/command-center */
 export async function getRevenueCommandCenter(): Promise<RevenueCommandCenter> {
   await randomDelay(600, 1100);
-  const encounters = getEncounters().filter((e) => e.coding || e.revenuePrediction);
+  const { items: allEncounters } = await listEncounters({ pageSize: 50 });
+  const encounters = allEncounters.filter((e) => e.coding || e.revenuePrediction);
   const today = new Date().toISOString().slice(0, 10);
   const avg = (vals: number[]) =>
     vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
@@ -197,8 +193,8 @@ export async function getRevenueCommandCenter(): Promise<RevenueCommandCenter> {
         encounterId: row.encounterId,
         patientName: row.patientName,
         leakageAmount: row.revenueAtRisk,
-        riskFactor: riskFactorFor(encounter, row.claimReadiness),
-        claimScore: row.claimReadiness,
+        riskFactor: riskFactorFor(encounter, row.claimScore),
+        claimScore: row.claimScore,
         mitigation: mitigationFor(encounter),
         status: row.status,
       };
@@ -274,7 +270,8 @@ export async function getRevenueExecutiveSummary(): Promise<{
   sourceEncounterId: string | null;
 }> {
   await randomDelay(500, 900);
-  const encounters = getEncounters().filter((e) => e.coding || e.documentation);
+  const { items: allEncounters } = await listEncounters({ pageSize: 50 });
+  const encounters = allEncounters.filter((e) => e.coding || e.documentation);
   const source =
     encounters.find((e) => e.id === "enc_john_smith_001") ??
     encounters.find((e) => e.executiveSummary) ??
@@ -305,7 +302,7 @@ export async function getRevenueExecutiveSummary(): Promise<{
 
 /** Run prediction for a stored encounter id (command-center action) */
 export async function runEncounterRevenuePrediction(encounterId: string): Promise<RevenuePrediction> {
-  const encounter = getEncounters().find((e) => e.id === encounterId);
+  const encounter = await getEncounter(encounterId);
   if (!encounter) throw new Error("Encounter not found");
   return runRevenuePrediction(encounterInputFrom(encounter));
 }

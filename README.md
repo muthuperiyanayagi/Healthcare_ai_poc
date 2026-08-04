@@ -31,3 +31,10 @@ Open [http://localhost:3000](http://localhost:3000).
 - Use the **John Smith preset** on New Encounter for the diabetes demo path (ICD-10 E11.9, etc.).
 - PDF export uses the browser print dialog (`window.print`) with a print stylesheet.
 - Encounter data persists in `localStorage`.
+Patient details autofill
+
+admin/ compliance officer-read only all
+customer service-clinical documentation-read only-Patient info(write)
+ doctor- no revenue cycle,chatbot access,claim readiness
+  nurse- roles
+  sarah.chen@operyx.ai / demo123

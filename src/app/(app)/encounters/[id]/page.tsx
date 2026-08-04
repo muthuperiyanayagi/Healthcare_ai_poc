@@ -38,7 +38,21 @@ export default function EncounterDetailPage() {
     let cancelled = false;
     getEncounter(params.id)
       .then((data) => {
-        if (!cancelled) setEncounter(data);
+        if (!cancelled) {
+          setEncounter(data);
+          // HIPAA Log clinical access event
+          fetch("/api/audit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "view_encounter",
+              entity: "encounter",
+              sessionId: data.id,
+              patientId: data.patientId,
+              details: `Clinician opened clinical encounter details page for patient: ${data.patientName}`,
+            }),
+          }).catch((err) => console.warn("Failed to submit audit log:", err));
+        }
       })
       .catch(() => {
         if (!cancelled) {

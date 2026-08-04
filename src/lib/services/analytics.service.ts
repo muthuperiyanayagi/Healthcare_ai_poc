@@ -4,7 +4,7 @@ import {
   buildDashboardMetrics,
   buildWeeklySeries,
 } from "@/lib/mock/analytics";
-import { getEncounters } from "@/stores/local-store";
+import { listEncounters } from "./encounter.service";
 import { randomDelay } from "@/lib/utils";
 
 /** FastAPI-shaped: GET /api/v1/analytics/dashboard */
@@ -13,7 +13,7 @@ export async function getDashboardMetrics(): Promise<{
   weekly: WeeklyPoint[];
 }> {
   await randomDelay(600, 1200);
-  const encounters = getEncounters();
+  const { items: encounters } = await listEncounters({ pageSize: 100 });
   const today = new Date().toISOString().slice(0, 10);
   const patientsToday = encounters.filter((e) => e.createdAt.slice(0, 10) === today).length;
   const withAi = encounters.filter((e) => e.documentation);

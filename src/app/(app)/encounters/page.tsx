@@ -31,28 +31,23 @@ export default function EncounterHistoryPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [status, setStatus] = useState<"all" | EncounterStatus>("all");
   const [page, setPage] = useState(1);
-  const [filterKey, setFilterKey] = useState(`|all`);
-  const [requestKey, setRequestKey] = useState(`|all|1`);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQuery(query), 250);
+    const t = window.setTimeout(() => {
+      setDebouncedQuery(query);
+      setPage(1);
+    }, 250);
     return () => window.clearTimeout(t);
   }, [query]);
 
-  const nextFilterKey = `${debouncedQuery}|${status}`;
-  if (nextFilterKey !== filterKey) {
-    setFilterKey(nextFilterKey);
+  const handleStatusChange = (v: string) => {
+    setStatus(v as "all" | EncounterStatus);
     setPage(1);
-  }
-
-  const nextRequestKey = `${debouncedQuery}|${status}|${page}`;
-  if (nextRequestKey !== requestKey) {
-    setRequestKey(nextRequestKey);
-    setLoading(true);
-  }
+  };
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     listEncounters({
       search: debouncedQuery,
       status,
@@ -101,7 +96,7 @@ export default function EncounterHistoryPage() {
           <Label htmlFor="encounter-status">Status</Label>
           <Select
             value={status}
-            onValueChange={(v) => setStatus(v as "all" | EncounterStatus)}
+            onValueChange={handleStatusChange}
           >
             <SelectTrigger id="encounter-status" className="w-full">
               <SelectValue placeholder="Status" />

@@ -1,35 +1,33 @@
 import type { AuthSession } from "@/lib/types";
-import { DEMO_CREDENTIALS } from "@/lib/mock/seed";
 import { getSession, setSession } from "@/stores/local-store";
-import { randomDelay } from "@/lib/utils";
 
-/** FastAPI-shaped: POST /api/v1/auth/login */
+/** Connect login system directly to /api/auth/login route */
 export async function login(email: string, password: string): Promise<AuthSession> {
-  await randomDelay(600, 1200);
-  if (
-    email.trim().toLowerCase() !== DEMO_CREDENTIALS.email ||
-    password !== DEMO_CREDENTIALS.password
-  ) {
-    throw new Error("Invalid email or password. Use demo@operyx.ai / demo123");
+  const response = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Login failed");
   }
-  const session: AuthSession = {
-    email: DEMO_CREDENTIALS.email,
-    name: "Dr. Sarah Chen",
-    role: "Attending Physician",
-    loggedInAt: new Date().toISOString(),
-  };
+
+  const session: AuthSession = await response.json();
   setSession(session);
   return session;
 }
 
-/** FastAPI-shaped: POST /api/v1/auth/logout */
 export async function logout(): Promise<void> {
-  await randomDelay(200, 500);
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } catch (err) {
+    console.warn("Backend logout failed, proceeding with client logout:", err);
+  }
   setSession(null);
 }
 
-/** FastAPI-shaped: GET /api/v1/auth/me */
 export async function getCurrentSession(): Promise<AuthSession | null> {
-  await randomDelay(150, 400);
   return getSession();
 }

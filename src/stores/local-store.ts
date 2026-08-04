@@ -1,5 +1,5 @@
 import type { AppSettings, AuthSession, Encounter } from "@/lib/types";
-import { DEFAULT_SETTINGS, SEED_ENCOUNTERS } from "@/lib/mock/seed";
+import { DEFAULT_SETTINGS } from "@/lib/mock/seed";
 
 const KEYS = {
   encounters: "operyx.encounters",
@@ -29,13 +29,11 @@ function writeJson<T>(key: string, value: T): void {
 }
 
 export function ensureSeeded(): Encounter[] {
-  if (!canUseStorage()) return [...SEED_ENCOUNTERS];
-  const seeded = localStorage.getItem(KEYS.seeded);
+  if (!canUseStorage()) return [];
   const existing = readJson<Encounter[] | null>(KEYS.encounters, null);
-  if (!seeded || !existing || existing.length === 0) {
-    writeJson(KEYS.encounters, SEED_ENCOUNTERS);
-    localStorage.setItem(KEYS.seeded, "1");
-    return [...SEED_ENCOUNTERS];
+  if (!existing || existing.length === 0) {
+    writeJson(KEYS.encounters, []);
+    return [];
   }
   return existing;
 }

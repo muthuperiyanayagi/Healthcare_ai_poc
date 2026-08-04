@@ -13,6 +13,18 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     let mounted = true;
+
+    // Record HIPAA audit log for analytics dashboard access
+    fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "view_analytics",
+        entity: "analytics",
+        details: "Clinician opened clinical and administrative metrics analytics panel",
+      }),
+    }).catch((err) => console.warn("Failed to submit audit log:", err));
+
     getAnalyticsSeries()
       .then((data) => {
         if (mounted) setSeries(data);

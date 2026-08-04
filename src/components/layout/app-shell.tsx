@@ -111,9 +111,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const s = await getCurrentSession();
       if (!mounted) return;
       if (!s) {
-        router.replace("/login");
+        if (pathname !== "/login") {
+          router.replace("/login");
+        } else {
+          setChecking(false);
+        }
         return;
       }
+
+      if (pathname === "/login") {
+        router.replace("/dashboard");
+        return;
+      }
+
       const saved = getSettings();
       setSession(s);
       setSettings(saved);
@@ -146,6 +156,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const doctor = settings?.doctorName ?? session?.name ?? "Clinician";
   const hospital = settings?.hospitalName ?? "Operyx Memorial Hospital";
 
+  const userRole = (session?.role || "").toLowerCase();
+  const isDoctor = userRole === "doctor";
+
+  const visiblePrimaryNav = PRIMARY_NAV.filter((item) => {
+    if (item.href === "/encounters/new") return isDoctor;
+    return true;
+  });
+
+  const visibleSecondaryNav = SECONDARY_NAV.filter((item) => {
+    if (item.href === "/ask") return isDoctor;
+    return true;
+  });
+
   const navContent = (
     <div className="flex h-full flex-col">
       <div className={cn("flex items-center gap-3 px-4 py-5", collapsed && "justify-center px-2")}>
@@ -166,7 +189,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Core workflows
             </p>
           )}
-          {PRIMARY_NAV.map(({ href, label, icon: Icon }) => {
+          {visiblePrimaryNav.map(({ href, label, icon: Icon }) => {
             const active = isPrimaryActive(href, pathname);
             return (
               <Link
@@ -196,7 +219,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Workspace
             </p>
           )}
-          {SECONDARY_NAV.map(({ href, label, icon: Icon }) => {
+          {visibleSecondaryNav.map(({ href, label, icon: Icon }) => {
             const active = isSecondaryActive(href, pathname);
             return (
               <Link

@@ -63,6 +63,17 @@ export default function RevenuePage() {
   useEffect(() => {
     let mounted = true;
 
+    // Record HIPAA audit log for revenue command center access
+    fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "view_revenue_cycle",
+        entity: "revenue_cycle",
+        details: "Clinician opened Revenue Cycle Command Center and AI leakage reports",
+      }),
+    }).catch((err) => console.warn("Failed to submit audit log:", err));
+
     (async () => {
       try {
         const [command, exec] = await Promise.all([

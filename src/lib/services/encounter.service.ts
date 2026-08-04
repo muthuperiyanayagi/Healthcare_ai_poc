@@ -22,20 +22,43 @@ export interface EncounterListResult {
   pageSize: number;
 }
 
+// Helper to handle API response and redirect to login if 401 Unauthorized
+function handleUnauthorized(status: number) {
+  if (status === 401 && typeof window !== "undefined") {
+    localStorage.removeItem("operyx.session");
+    window.location.href = "/login";
+  }
+}
+
 /** FastAPI-shaped: GET /api/v1/encounters */
 export async function listEncounters(query: EncounterListQuery = {}): Promise<EncounterListResult> {
-  await randomDelay(500, 1100);
   const page = query.page ?? 1;
   const pageSize = query.pageSize ?? 8;
-  const search = (query.search ?? "").trim().toLowerCase();
+  const search = (query.search ?? "").trim();
   const status = query.status ?? "all";
 
+  try {
+    const res = await fetch(
+      `/api/encounters?search=${encodeURIComponent(search)}&status=${status}&page=${page}&pageSize=${pageSize}`
+    );
+    if (res.ok) {
+      return await res.json();
+    }
+    handleUnauthorized(res.status);
+    throw new Error(`API returned status ${res.status}`);
+  } catch (err) {
+    console.warn("API listEncounters failed, falling back to local store:", err);
+  }
+
+  // Fallback to local storage
+  await randomDelay(300, 700);
+  const searchLower = search.toLowerCase();
   let items = getEncounters();
-  if (search) {
+  if (searchLower) {
     items = items.filter(
       (e) =>
-        e.patientName.toLowerCase().includes(search) ||
-        e.chiefComplaint.toLowerCase().includes(search)
+        e.patientName.toLowerCase().includes(searchLower) ||
+        e.chiefComplaint.toLowerCase().includes(searchLower)
     );
   }
   if (status !== "all") {
@@ -54,7 +77,18 @@ export async function listEncounters(query: EncounterListQuery = {}): Promise<En
 
 /** FastAPI-shaped: GET /api/v1/encounters/{id} */
 export async function getEncounter(id: string): Promise<Encounter> {
-  await randomDelay(400, 900);
+  try {
+    const res = await fetch(`/api/encounters/${id}`);
+    if (res.ok) {
+      return await res.json();
+    }
+    handleUnauthorized(res.status);
+    throw new Error(`API returned status ${res.status}`);
+  } catch (err) {
+    console.warn("API getEncounter failed, falling back to local store:", err);
+  }
+
+  await randomDelay(200, 500);
   const enc = getEncounterById(id);
   if (!enc) throw new Error("Encounter not found");
   return enc;
@@ -65,7 +99,6 @@ export async function createEncounter(
   input: EncounterInput,
   ai?: ReturnType<typeof generateClinicalAi>
 ): Promise<Encounter> {
-  await randomDelay(600, 1200);
   const now = new Date().toISOString();
   const generated = ai ?? generateClinicalAi(input);
   const encounter: Encounter = {
@@ -90,6 +123,25 @@ export async function createEncounter(
     productivity: generated.productivity,
     executiveSummary: generated.executiveSummary,
   };
+
+  try {
+    const res = await fetch("/api/encounters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ encounter, ai: generated }),
+    });
+    if (res.ok) {
+      // Also sync to local storage as double-backup
+      saveEncounter(encounter);
+      return encounter;
+    }
+    handleUnauthorized(res.status);
+    throw new Error(`API returned status ${res.status}`);
+  } catch (err) {
+    console.warn("API createEncounter failed, saving to local store only:", err);
+  }
+
+  await randomDelay(400, 800);
   return saveEncounter(encounter);
 }
 
@@ -98,7 +150,25 @@ export async function patchEncounter(
   id: string,
   patch: Partial<Encounter>
 ): Promise<Encounter> {
-  await randomDelay(400, 800);
+  try {
+    const res = await fetch(`/api/encounters/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      // Sync local store
+      saveEncounter(updated);
+      return updated;
+    }
+    handleUnauthorized(res.status);
+    throw new Error(`API returned status ${res.status}`);
+  } catch (err) {
+    console.warn("API patchEncounter failed, updating local store only:", err);
+  }
+
+  await randomDelay(200, 500);
   const updated = updateEncounter(id, patch);
   if (!updated) throw new Error("Encounter not found");
   return updated;
@@ -106,6 +176,18 @@ export async function patchEncounter(
 
 /** FastAPI-shaped: GET /api/v1/encounters/recent */
 export async function getRecentEncounters(limit = 6): Promise<Encounter[]> {
-  await randomDelay(400, 900);
+  try {
+    const res = await fetch(`/api/encounters?pageSize=${limit}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.items;
+    }
+    handleUnauthorized(res.status);
+    throw new Error(`API returned status ${res.status}`);
+  } catch (err) {
+    console.warn("API getRecentEncounters failed, falling back to local store:", err);
+  }
+
+  await randomDelay(200, 500);
   return getEncounters().slice(0, limit);
 }

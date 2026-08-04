@@ -56,21 +56,23 @@ export function EncounterPrintReport({ encounter }: { encounter: Encounter }) {
             ) : null}
           </section>
 
-          <section className="print-section">
-            <h2>SOAP</h2>
-            <p>
-              <strong>S:</strong> {encounter.documentation.soap.subjective}
-            </p>
-            <p>
-              <strong>O:</strong> {encounter.documentation.soap.objective}
-            </p>
-            <p>
-              <strong>A:</strong> {encounter.documentation.soap.assessment}
-            </p>
-            <p>
-              <strong>P:</strong> {encounter.documentation.soap.plan}
-            </p>
-          </section>
+          {encounter.documentation.soap ? (
+            <section className="print-section">
+              <h2>SOAP</h2>
+              <p>
+                <strong>S:</strong> {encounter.documentation.soap.subjective}
+              </p>
+              <p>
+                <strong>O:</strong> {encounter.documentation.soap.objective}
+              </p>
+              <p>
+                <strong>A:</strong> {encounter.documentation.soap.assessment}
+              </p>
+              <p>
+                <strong>P:</strong> {encounter.documentation.soap.plan}
+              </p>
+            </section>
+          ) : null}
 
           <section className="print-section">
             <h2>Assessment & plan</h2>
@@ -247,10 +249,14 @@ export function EncounterDetailView({ encounter }: { encounter: Encounter }) {
                 value={encounter.documentation.clinicalContextSummary}
               />
             ) : null}
-            <Detail label="SOAP Subjective" value={encounter.documentation.soap.subjective} />
-            <Detail label="SOAP Objective" value={encounter.documentation.soap.objective} />
-            <Detail label="SOAP Assessment" value={encounter.documentation.soap.assessment} />
-            <Detail label="SOAP Plan" value={encounter.documentation.soap.plan} />
+            {encounter.documentation.soap ? (
+              <>
+                <Detail label="SOAP Subjective" value={encounter.documentation.soap.subjective} />
+                <Detail label="SOAP Objective" value={encounter.documentation.soap.objective} />
+                <Detail label="SOAP Assessment" value={encounter.documentation.soap.assessment} />
+                <Detail label="SOAP Plan" value={encounter.documentation.soap.plan} />
+              </>
+            ) : null}
             <Detail label="Treatment plan" value={encounter.documentation.treatmentPlan} />
             <Detail label="Follow-up" value={encounter.documentation.followUpPlan} />
             {encounter.documentation.patientInstructions ? (

@@ -38,6 +38,17 @@ export default function DashboardPage() {
   useEffect(() => {
     let mounted = true;
 
+    // Record HIPAA audit log for accessing dashboard metrics
+    fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "view_dashboard",
+        entity: "dashboard",
+        details: "Clinician opened central dashboard and metric KPIs panel",
+      }),
+    }).catch((err) => console.warn("Failed to submit audit log:", err));
+
     (async () => {
       try {
         const [dash, recentEncounters] = await Promise.all([

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Download, Printer, Save } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -20,13 +20,30 @@ import { createEncounter } from "@/lib/services/encounter.service";
 import { downloadJson, exportFhirBundle } from "@/lib/services/fhir.service";
 import type { AiGenerationResult, Encounter } from "@/lib/types";
 
-export default function NewEncounterPage() {
+function NewEncounterContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [form, setForm] = useState<EncounterFormValues>(EMPTY_ENCOUNTER_INPUT);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<AiGenerationResult | null>(null);
   const [saved, setSaved] = useState<Encounter | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const patientName = searchParams.get("patientName");
+    const gender = searchParams.get("gender");
+    const age = searchParams.get("age");
+
+    if (patientName || gender || age) {
+      setForm((prev) => ({
+        ...prev,
+        patientName: patientName || prev.patientName,
+        gender: (gender as any) || prev.gender,
+        age: age ? Number(age) : prev.age,
+      }));
+      toast.success("SMART on FHIR Patient context loaded automatically");
+    }
+  }, [searchParams]);
 
   async function handleGenerate() {
     setGenerating(true);
@@ -171,3 +188,12 @@ export default function NewEncounterPage() {
     </div>
   );
 }
+
+export default function NewEncounterPage() {
+  return (
+    <Suspense fallback={<AiGeneratingSkeleton />}>
+      <NewEncounterContent />
+    </Suspense>
+  );
+}
+

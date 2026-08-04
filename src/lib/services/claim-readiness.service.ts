@@ -1,6 +1,6 @@
 import type { ClaimReadinessResult, DenialRiskPrediction, Encounter, EncounterInput } from "@/lib/types";
 import { assessClaimReadiness, predictDenialRisk } from "@/lib/services/ai.service";
-import { getEncounterById, getEncounters } from "@/stores/local-store";
+import { listEncounters, getEncounter } from "./encounter.service";
 import { randomDelay } from "@/lib/utils";
 
 /**
@@ -23,7 +23,8 @@ export async function listClaimReadinessPortfolio(): Promise<{
   }>;
 }> {
   await randomDelay(500, 1000);
-  const encounters = getEncounters().filter((e) => e.coding);
+  const { items: allEncounters } = await listEncounters({ pageSize: 50 });
+  const encounters = allEncounters.filter((e) => e.coding);
   const items = encounters.slice(0, 12).map((e) => {
     const score = e.claimReadinessDetail?.score ?? e.coding?.claimReadiness ?? 80;
     const status =
@@ -55,7 +56,7 @@ export async function getEncounterClaimReadiness(encounterId: string): Promise<{
   denialRisk: DenialRiskPrediction;
 }> {
   await randomDelay(400, 900);
-  const encounter = getEncounterById(encounterId);
+  const encounter = await getEncounter(encounterId);
   if (!encounter) throw new Error("Encounter not found");
 
   const input: EncounterInput = {

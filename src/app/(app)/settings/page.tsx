@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -33,6 +34,18 @@ export default function SettingsPage() {
 
   useEffect(() => {
     let mounted = true;
+
+    // Record HIPAA audit log for settings panel access
+    fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "view_settings",
+        entity: "settings",
+        details: "Clinician opened platform settings and AI configuration profiles panel",
+      }),
+    }).catch((err) => console.warn("Failed to submit audit log:", err));
+
     fetchSettings().then((s) => {
       if (mounted) setSettings(s);
     });
@@ -202,6 +215,16 @@ export default function SettingsPage() {
             clinician review before final chart commitment. FHIR R4 export and HL7-ready interfaces
             support EHR interoperability.
           </p>
+
+          <div className="mt-5 border-t border-border/60 pt-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+            <div>
+              <p className="text-sm font-semibold">HIPAA Security Audit Trail</p>
+              <p className="text-xs text-muted-foreground">Inspect chronological logs of database access, exports, and clinical updates.</p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/settings/logs">View Audit Logs</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
