@@ -193,8 +193,8 @@ export async function getRevenueCommandCenter(): Promise<RevenueCommandCenter> {
         encounterId: row.encounterId,
         patientName: row.patientName,
         leakageAmount: row.revenueAtRisk,
-        riskFactor: riskFactorFor(encounter, row.claimScore),
-        claimScore: row.claimScore,
+        riskFactor: riskFactorFor(encounter, row.claimReadiness),
+        claimScore: row.claimReadiness,
         mitigation: mitigationFor(encounter),
         status: row.status,
       };

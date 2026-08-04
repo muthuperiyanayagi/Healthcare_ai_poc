@@ -99,18 +99,15 @@ export default function PriorAuthPage() {
       const encounter = await getEncounter(item.encounterId);
       const values: PriorAuthFormValues = {
         patientName: encounter.patientName,
-        age: encounter.age.toString(),
+        age: encounter.age,
         gender: encounter.gender,
-        chiefComplaint: encounter.chiefComplaint,
-        historyOfPresentIllness: encounter.historyOfPresentIllness,
-        pastMedicalHistory: encounter.pastMedicalHistory || "",
-        medications: encounter.medications || "",
-        allergies: encounter.allergies || "",
-        vitals: encounter.vitals || "",
-        examFindings: encounter.examFindings || "",
-        labs: encounter.labs || "",
-        assessmentNotes: encounter.assessmentNotes || "",
-        cptCodes: encounter.coding?.cpt?.[0]?.code ?? "99214",
+        insurancePayer: "UnitedHealthcare",
+        insurancePlan: "Commercial HMO",
+        memberId: "UHC-44102918",
+        procedureCode: encounter.coding?.cpt?.[0]?.code ?? "99214",
+        procedureDescription: encounter.coding?.cpt?.[0]?.description ?? "Office visit",
+        clinicalJustification: encounter.historyOfPresentIllness || encounter.assessmentNotes || "Clinical necessity justification",
+        referralFileName: undefined,
       };
       setFormDefaults(values);
       setFormKey((k) => k + 1);
@@ -173,7 +170,7 @@ export default function PriorAuthPage() {
         <PriorAuthForm
           key={formKey}
           onSubmit={handleAssess}
-          isLoading={assessing}
+          generating={assessing}
           defaultValues={formDefaults}
         />
 
@@ -189,8 +186,7 @@ export default function PriorAuthPage() {
           queue && (
             <PriorAuthQueue
               items={queue.items}
-              onAssess={handleAssessFromQueue}
-              activeEncounterId={lastContext?.patientName}
+              onAssessEncounter={handleAssessFromQueue}
             />
           )
         )}
