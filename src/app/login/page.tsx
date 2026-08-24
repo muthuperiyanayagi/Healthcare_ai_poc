@@ -21,9 +21,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (getSession()) {
-      router.replace("/dashboard");
-    }
+    getSession().then((session) => {
+      if (session) router.replace("/dashboard");
+    });
   }, [router]);
 
   async function onSubmit(e: React.FormEvent) {

@@ -5,13 +5,13 @@ import { randomDelay } from "@/lib/utils";
 /** FastAPI-shaped: GET /api/v1/settings */
 export async function fetchSettings(): Promise<AppSettings> {
   await randomDelay(300, 700);
-  return getSettings();
+  return await getSettings();
 }
 
 /** FastAPI-shaped: PUT /api/v1/settings */
 export async function updateSettings(settings: AppSettings): Promise<AppSettings> {
   await randomDelay(400, 900);
-  return saveSettings(settings);
+  return await saveSettings(settings);
 }
 
 export const AI_PROVIDERS = [

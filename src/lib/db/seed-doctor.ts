@@ -2,8 +2,8 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "../../../drizzle/schema";
 import * as dotenv from "dotenv";
-import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
+import { hashPassword } from "../auth/password";
 
 dotenv.config();
 
@@ -14,10 +14,6 @@ if (!process.env.DATABASE_URL) {
 
 const sql = neon(process.env.DATABASE_URL);
 const db = drizzle(sql, { schema });
-
-function hashPassword(password: string): string {
-  return createHash("sha256").update(password).digest("hex");
-}
 
 async function seedDoctor(email: string, name: string, plainPassword: string, specialization: string, licenseNumber: string) {
   console.log(`Seeding doctor: ${name} (${email})...`);

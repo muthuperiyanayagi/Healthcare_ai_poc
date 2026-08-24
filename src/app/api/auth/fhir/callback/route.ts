@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { decodeJwt } from "jose";
 import { signToken } from "@/lib/auth/jwt";
 
 /**
@@ -10,6 +11,15 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const state = searchParams.get("state");
+    const authError = searchParams.get("error");
+    const authErrorDescription = searchParams.get("error_description");
+
+    if (authError) {
+      return NextResponse.json(
+        { error: `EHR authorization failed: ${authError}`, details: authErrorDescription },
+        { status: 400 }
+      );
+    }
 
     if (!code) {
       return NextResponse.json({ error: "Missing authorization code from EHR" }, { status: 400 });
@@ -22,6 +32,7 @@ export async function GET(req: Request) {
       ?.split("=")[1];
 
     let finalIss = "https://r4.smarthealthit.org";
+    let codeVerifier: string | undefined;
 
     // Graceful check fallback for local development HTTP cookie/CSRF blocking
     if (!fhirLaunchCookie) {
@@ -37,6 +48,7 @@ export async function GET(req: Request) {
           return NextResponse.json({ error: "State parameter validation failed (CSRF check)" }, { status: 403 });
         }
         finalIss = decoded.iss;
+        codeVerifier = decoded.codeVerifier;
       } catch (err) {
         if (process.env.NODE_ENV === "production") {
           return NextResponse.json({ error: "Invalid launch session state format" }, { status: 400 });
@@ -66,7 +78,11 @@ export async function GET(req: Request) {
       }
     }
 
-    const clientId = process.env.NEXT_PUBLIC_FHIR_CLIENT_ID || "operyx_poc_client_id";
+    const clientId = process.env.NEXT_PUBLIC_FHIR_CLIENT_ID;
+    if (!clientId) {
+      return NextResponse.json({ error: "NEXT_PUBLIC_FHIR_CLIENT_ID is not configured" }, { status: 500 });
+    }
+
     const redirectUri = `${new URL(req.url).origin}/api/auth/fhir/callback`;
 
     // 2. Perform Code Exchange against EHR token endpoint
@@ -75,6 +91,9 @@ export async function GET(req: Request) {
     bodyParams.set("code", code);
     bodyParams.set("redirect_uri", redirectUri);
     bodyParams.set("client_id", clientId);
+    if (codeVerifier) {
+      bodyParams.set("code_verifier", codeVerifier);
+    }
 
     const tokenRes = await fetch(tokenUrl, {
       method: "POST",
@@ -82,14 +101,26 @@ export async function GET(req: Request) {
       body: bodyParams.toString(),
     });
 
+    // Read raw text first so a non-JSON response (proxy/WAF error page, etc.)
+    // doesn't crash with an unhandled JSON.parse exception.
+    const tokenText = await tokenRes.text();
+
     if (!tokenRes.ok) {
-      const errText = await tokenRes.text();
-      console.error("EHR Token Exchange Error:", errText);
-      return NextResponse.json({ error: "EHR Token exchange failed", details: errText }, { status: 401 });
+      console.error("EHR Token Exchange Error:", tokenText);
+      return NextResponse.json({ error: "EHR Token exchange failed", details: tokenText }, { status: 401 });
     }
 
-    const tokenData = await tokenRes.json();
-    const { access_token, patient: launchedPatientId } = tokenData;
+    let tokenData;
+    try {
+      tokenData = JSON.parse(tokenText);
+    } catch (err) {
+      console.error("EHR Token Exchange returned non-JSON body:", tokenText);
+      return NextResponse.json(
+        { error: "EHR Token exchange returned an unexpected response", details: tokenText },
+        { status: 502 }
+      );
+    }
+    const { access_token, patient: launchedPatientId, id_token, expires_in } = tokenData;
 
     // 3. Query EHR FHIR Server to retrieve Patient details
     let patientName = "Unknown SMART Patient";
@@ -119,12 +150,75 @@ export async function GET(req: Request) {
       }
     }
 
-    // 4. Create clinician session
+    // 4. Identify the logged-in clinician from the id_token's fhirUser claim
+    // (unverified decode: fine for sandbox testing, but production should verify
+    // the id_token signature against the EHR's JWKS before trusting these claims)
+    let clinicianName = "SMART Clinician";
+    let clinicianId = "unknown-fhir-user";
+    let fhirUserRef: string | null = null;
+
+    if (id_token) {
+      try {
+        const claims = decodeJwt(id_token) as { fhirUser?: string; sub?: string };
+        fhirUserRef = claims.fhirUser || null;
+        clinicianId = claims.sub || clinicianId;
+      } catch (err) {
+        console.warn("Failed to decode id_token:", err);
+      }
+    }
+
+    if (fhirUserRef) {
+      try {
+        const resolveUrl = (ref: string) =>
+          ref.startsWith("http") ? ref : `${finalIss.replace(/\/$/, "")}/${ref}`;
+
+        let fhirUserRes = await fetch(resolveUrl(fhirUserRef), {
+          headers: { Authorization: `Bearer ${access_token}` },
+        });
+
+        if (fhirUserRes.ok) {
+          let resource = await fhirUserRes.json();
+
+          // fhirUser can point at a PractitionerRole instead of a Practitioner
+          // directly — PractitionerRole has no `name` of its own, so follow
+          // its `practitioner` reference to get the actual named resource.
+          if (resource.resourceType === "PractitionerRole" && resource.practitioner?.reference) {
+            const practitionerRes = await fetch(resolveUrl(resource.practitioner.reference), {
+              headers: { Authorization: `Bearer ${access_token}` },
+            });
+            if (practitionerRes.ok) {
+              resource = await practitionerRes.json();
+            }
+          }
+
+          clinicianName =
+            resource.name?.[0]?.text ||
+            `${resource.name?.[0]?.given?.join(" ") || ""} ${resource.name?.[0]?.family || ""}`.trim() ||
+            clinicianName;
+          clinicianId = resource.id || clinicianId;
+        }
+      } catch (err) {
+        console.warn("Failed to fetch fhirUser resource from EHR:", err);
+      }
+    }
+
+    // Create clinician session, carrying the Epic access token so later
+    // requests (e.g. pulling this patient's encounter history) can call
+    // Epic's FHIR API without redoing the OAuth dance.
     const clinicianSession = {
-      id: "demo-doctor-id",
-      email: "smart.clinician@hospital.org",
-      name: "Dr. Sarah Chen (SSO)",
+      id: clinicianId,
+      email: `${clinicianId}@smart-on-fhir.local`,
+      name: clinicianName,
       role: "Doctor",
+      epic: {
+        fhirBaseUrl: finalIss,
+        accessToken: access_token,
+        patientId: launchedPatientId || undefined,
+        patientName,
+        patientAge,
+        patientGender,
+        expiresAt: Date.now() + (typeof expires_in === "number" ? expires_in : 3600) * 1000,
+      },
     };
 
     const sessionToken = await signToken(clinicianSession);

@@ -1,14 +1,19 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import type { Encounter } from "@/lib/types";
+import type { AppSettings, Encounter } from "@/lib/types";
 import { getSettings } from "@/stores/local-store";
+import { DEFAULT_SETTINGS } from "@/lib/mock/seed";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CodingTable, CdsAlertList } from "@/components/encounter/ai-output-panels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function EncounterPrintReport({ encounter }: { encounter: Encounter }) {
-  const settings = getSettings();
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
   const hospital = settings.hospitalName || "Operyx Memorial Hospital";
   const doctor = settings.doctorName || "Dr. Sarah Chen";
   const organization = settings.organization || "Operyx Health Network";

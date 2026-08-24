@@ -20,25 +20,14 @@ export async function POST(req: Request) {
         const base64Audio = Buffer.from(bytes).toString("base64");
         const mimeType = file.type || "audio/mp3";
 
-        // Determine if key is a standard API Key (starts with AIza) or a Bearer Token (starts with AQ)
-        const isStandardApiKey = apiKey.startsWith("AIza");
-        
-        const url = isStandardApiKey
-          ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
-          : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
-
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-
-        if (!isStandardApiKey) {
-          headers["Authorization"] = `Bearer ${apiKey}`;
-        }
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
         // Call Gemini 2.5 Flash API
         const response = await fetch(url, {
           method: "POST",
-          headers: headers,
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
             contents: [
               {

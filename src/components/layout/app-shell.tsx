@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const saved = getSettings();
+      const saved = await getSettings();
       setSession(s);
       setSettings(saved);
       if (saved.theme) setTheme(saved.theme);
@@ -153,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const doctor = settings?.doctorName ?? session?.name ?? "Clinician";
+  const doctor = session?.name ?? settings?.doctorName ?? "Clinician";
   const hospital = settings?.hospitalName ?? "Operyx Memorial Hospital";
 
   const userRole = (session?.role || "").toLowerCase();

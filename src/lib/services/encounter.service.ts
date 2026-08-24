@@ -4,6 +4,7 @@ import {
   getEncounterById,
   getEncounters,
   saveEncounter,
+  setSession,
   updateEncounter,
 } from "@/stores/local-store";
 import { randomDelay, uid } from "@/lib/utils";
@@ -23,9 +24,9 @@ export interface EncounterListResult {
 }
 
 // Helper to handle API response and redirect to login if 401 Unauthorized
-function handleUnauthorized(status: number) {
+async function handleUnauthorized(status: number) {
   if (status === 401 && typeof window !== "undefined") {
-    localStorage.removeItem("operyx.session");
+    await setSession(null);
     window.location.href = "/login";
   }
 }
@@ -53,7 +54,7 @@ export async function listEncounters(query: EncounterListQuery = {}): Promise<En
   // Fallback to local storage
   await randomDelay(300, 700);
   const searchLower = search.toLowerCase();
-  let items = getEncounters();
+  let items = await getEncounters();
   if (searchLower) {
     items = items.filter(
       (e) =>
@@ -89,7 +90,7 @@ export async function getEncounter(id: string): Promise<Encounter> {
   }
 
   await randomDelay(200, 500);
-  const enc = getEncounterById(id);
+  const enc = await getEncounterById(id);
   if (!enc) throw new Error("Encounter not found");
   return enc;
 }
@@ -132,17 +133,17 @@ export async function createEncounter(
     });
     if (res.ok) {
       // Also sync to local storage as double-backup
-      saveEncounter(encounter);
+      await saveEncounter(encounter);
       return encounter;
     }
-    handleUnauthorized(res.status);
+    await handleUnauthorized(res.status);
     throw new Error(`API returned status ${res.status}`);
   } catch (err) {
     console.warn("API createEncounter failed, saving to local store only:", err);
   }
 
   await randomDelay(400, 800);
-  return saveEncounter(encounter);
+  return await saveEncounter(encounter);
 }
 
 /** FastAPI-shaped: PATCH /api/v1/encounters/{id} */
@@ -159,35 +160,49 @@ export async function patchEncounter(
     if (res.ok) {
       const updated = await res.json();
       // Sync local store
-      saveEncounter(updated);
+      await saveEncounter(updated);
       return updated;
     }
-    handleUnauthorized(res.status);
+    await handleUnauthorized(res.status);
     throw new Error(`API returned status ${res.status}`);
   } catch (err) {
     console.warn("API patchEncounter failed, updating local store only:", err);
   }
 
   await randomDelay(200, 500);
-  const updated = updateEncounter(id, patch);
+  const updated = await updateEncounter(id, patch);
   if (!updated) throw new Error("Encounter not found");
   return updated;
 }
 
 /** FastAPI-shaped: GET /api/v1/encounters/recent */
 export async function getRecentEncounters(limit = 6): Promise<Encounter[]> {
+  // If this session came from an Epic SMART launch, prefer that patient's
+  // real encounter history over the app's own (mock/DB) encounter records.
+  try {
+    const epicRes = await fetch("/api/fhir/encounters");
+    if (epicRes.ok) {
+      const epicData = await epicRes.json();
+      if (Array.isArray(epicData.items) && epicData.items.length > 0) {
+        return epicData.items.slice(0, limit);
+      }
+    }
+  } catch (err) {
+    console.warn("Epic encounters fetch failed, falling back:", err);
+  }
+
   try {
     const res = await fetch(`/api/encounters?pageSize=${limit}`);
     if (res.ok) {
       const data = await res.json();
       return data.items;
     }
-    handleUnauthorized(res.status);
+    await handleUnauthorized(res.status);
     throw new Error(`API returned status ${res.status}`);
   } catch (err) {
     console.warn("API getRecentEncounters failed, falling back to local store:", err);
   }
 
   await randomDelay(200, 500);
-  return getEncounters().slice(0, limit);
+  return (await getEncounters()).slice(0, limit);
 }

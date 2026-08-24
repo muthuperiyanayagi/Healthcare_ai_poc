@@ -4,11 +4,7 @@ import { users } from "../../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { signToken } from "@/lib/auth/jwt";
 import { createAuditLog } from "@/lib/services/audit.service";
-import { createHash } from "crypto";
-
-function hashPassword(password: string): string {
-  return createHash("sha256").update(password).digest("hex");
-}
+import { verifyPassword } from "@/lib/auth/password";
 
 export async function POST(req: Request) {
   try {
@@ -31,8 +27,7 @@ export async function POST(req: Request) {
 
         if (dbUsers.length > 0) {
           const user = dbUsers[0];
-          const incomingHash = hashPassword(password);
-          if (user.passwordHash === incomingHash) {
+          if (verifyPassword(password, user.passwordHash)) {
             authenticatedUser = {
               id: user.id,
               email: user.email,

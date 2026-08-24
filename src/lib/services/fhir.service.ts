@@ -7,7 +7,7 @@ export async function exportFhirBundle(encounter: Encounter): Promise<FhirBundle
   await randomDelay(500, 1000);
   const patientId = encounter.patientId || uid("Patient");
   const encounterId = encounter.id;
-  const settings = getSettings();
+  const settings = await getSettings();
   const practitionerName = settings.doctorName || "Dr. Sarah Chen";
 
   const conditions =

@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import { createHash, randomBytes } from "crypto";
+
+function base64url(input: Buffer) {
+  return input.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
 /**
  * SMART on FHIR Launch Endpoint (EHR Integration Launch)
@@ -39,9 +44,17 @@ export async function GET(req: Request) {
       }
     }
 
-    const clientId = process.env.NEXT_PUBLIC_FHIR_CLIENT_ID || "operyx_poc_client_id";
+    const clientId = process.env.NEXT_PUBLIC_FHIR_CLIENT_ID;
+    if (!clientId) {
+      return NextResponse.json({ error: "NEXT_PUBLIC_FHIR_CLIENT_ID is not configured" }, { status: 500 });
+    }
+
     const redirectUri = `${new URL(req.url).origin}/api/auth/fhir/callback`;
-    const state = Math.random().toString(36).substring(2, 15);
+    const state = base64url(randomBytes(16));
+
+    // PKCE (required by Epic for public clients)
+    const codeVerifier = base64url(randomBytes(32));
+    const codeChallenge = base64url(createHash("sha256").update(codeVerifier).digest());
 
     // 2. Build EHR Authorization redirect URL
     const authRedirect = new URL(authorizeUrl);
@@ -50,19 +63,21 @@ export async function GET(req: Request) {
     authRedirect.searchParams.set("redirect_uri", redirectUri);
     authRedirect.searchParams.set("aud", iss);
     authRedirect.searchParams.set("state", state);
-    authRedirect.searchParams.set("scope", "launch patient/*.read user/Patient.read openid fhirUser");
-    
+    authRedirect.searchParams.set("scope", "launch patient/Patient.read patient/Encounter.read openid fhirUser");
+    authRedirect.searchParams.set("code_challenge", codeChallenge);
+    authRedirect.searchParams.set("code_challenge_method", "S256");
+
     if (launch) {
       authRedirect.searchParams.set("launch", launch);
     }
 
     // Redirect clinician's browser to Epic / Cerner login page
     const response = NextResponse.redirect(authRedirect.toString());
-    
+
     // Store launch details temporarily in secure session cookie
     response.cookies.set({
       name: "fhir_launch_state",
-      value: JSON.stringify({ state, iss }),
+      value: JSON.stringify({ state, iss, codeVerifier }),
       httpOnly: true,
       maxAge: 300, // 5 minutes
       path: "/",
