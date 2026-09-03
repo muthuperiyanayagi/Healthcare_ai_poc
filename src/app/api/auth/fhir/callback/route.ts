@@ -221,6 +221,43 @@ export async function GET(req: Request) {
       },
     };
 
+    // Ensure clinician exists in Neon DB users table so foreign keys (sessions, audit_logs) succeed
+    if (process.env.DATABASE_URL) {
+      try {
+        const { db } = await import("@/lib/db");
+        const { users } = await import("../../../../../../drizzle/schema");
+        const { createHash } = await import("crypto");
+        const hash = createHash("md5").update(clinicianId).digest("hex");
+        const clinicianUuid = [
+          hash.substring(0, 8),
+          hash.substring(8, 12),
+          `4${hash.substring(13, 16)}`,
+          `8${hash.substring(17, 20)}`,
+          hash.substring(20, 32),
+        ].join("-");
+
+        await db
+          .insert(users)
+          .values({
+            id: clinicianUuid,
+            name: clinicianName,
+            email: `${clinicianId}@smart-on-fhir.local`,
+            passwordHash: "smart-on-fhir-sso",
+            role: "doctor",
+            isActive: true,
+          })
+          .onConflictDoUpdate({
+            target: users.id,
+            set: {
+              name: clinicianName,
+              updatedAt: new Date().toISOString(),
+            },
+          });
+      } catch (dbErr) {
+        console.warn("Could not upsert SMART clinician into users table:", dbErr);
+      }
+    }
+
     const sessionToken = await signToken(clinicianSession);
 
     // 5. Redirect user to New Encounter pre-populated with patient context

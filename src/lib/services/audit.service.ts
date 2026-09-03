@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { auditLogs } from "../../../drizzle/schema";
+import { auditLogs, users } from "../../../drizzle/schema";
 import { createHash } from "crypto";
 
 export interface CreateAuditLogInput {
@@ -46,28 +46,87 @@ function toUuid(id: string): string {
 export async function createAuditLog(input: CreateAuditLogInput) {
   try {
     if (process.env.DATABASE_URL) {
-      await db.insert(auditLogs).values({
-        sessionId: input.sessionId ? toUuid(input.sessionId) : null,
-        action: input.action,
-        entity: input.entity,
-        performedBy: input.performedBy,
-        role: input.role,
-        details: input.details,
-        doctorId: input.doctorId ? toUuid(input.doctorId) : null,
-        patientId: input.patientId ? toUuid(input.patientId) : null,
-        soapNoteId: input.soapNoteId ? toUuid(input.soapNoteId) : null,
-        ipAddress: input.ipAddress,
-        userAgent: input.userAgent,
-        outcome: input.outcome,
-        errorCode: input.errorCode,
-        errorMessage: input.errorMessage,
-        targetUserId: input.targetUserId ? toUuid(input.targetUserId) : null,
-        exportType: input.exportType,
-        recordCount: input.recordCount,
-        exportScope: input.exportScope,
-        requestId: input.requestId,
-        environment: process.env.NODE_ENV || "development",
-      });
+      const performedByUuid = input.performedBy ? toUuid(input.performedBy) : null;
+      const doctorUuid = input.doctorId ? toUuid(input.doctorId) : null;
+
+      // If performedByUuid or doctorUuid is an external SSO ID (e.g. Epic practitioner),
+      // ensure a shadow record exists in the users table so the foreign key constraint is satisfied.
+      if (performedByUuid) {
+        try {
+          const roleNormalized = (input.role || "doctor").toLowerCase();
+          const validRole = ["admin", "reviewer", "compliance_officer", "doctor", "coder"].includes(roleNormalized)
+            ? roleNormalized
+            : "doctor";
+
+          await db
+            .insert(users)
+            .values({
+              id: performedByUuid,
+              name: input.role === "doctor" || input.role === "Doctor" ? "SMART Clinician" : "System User",
+              email: `${input.performedBy}@smart-on-fhir.local`,
+              passwordHash: "sso-authenticated",
+              role: validRole,
+              isActive: true,
+            })
+            .onConflictDoNothing();
+        } catch (uErr) {
+          // If user insertion fails, ignore and proceed
+        }
+      }
+
+      try {
+        await db.insert(auditLogs).values({
+          sessionId: input.sessionId ? toUuid(input.sessionId) : null,
+          action: input.action,
+          entity: input.entity,
+          performedBy: performedByUuid,
+          role: input.role,
+          details: input.details,
+          doctorId: doctorUuid,
+          patientId: input.patientId ? toUuid(input.patientId) : null,
+          soapNoteId: input.soapNoteId ? toUuid(input.soapNoteId) : null,
+          ipAddress: input.ipAddress,
+          userAgent: input.userAgent,
+          outcome: input.outcome,
+          errorCode: input.errorCode,
+          errorMessage: input.errorMessage,
+          targetUserId: input.targetUserId ? toUuid(input.targetUserId) : null,
+          exportType: input.exportType,
+          recordCount: input.recordCount,
+          exportScope: input.exportScope,
+          requestId: input.requestId,
+          environment: process.env.NODE_ENV || "development",
+        });
+      } catch (insertErr: any) {
+        // If a foreign key constraint fails (code 23503), retry without the foreign key
+        // references so the HIPAA audit trail is never dropped.
+        if (insertErr?.code === "23503") {
+          await db.insert(auditLogs).values({
+            sessionId: null,
+            action: input.action,
+            entity: input.entity,
+            performedBy: null,
+            role: input.role,
+            details: `${input.details || ""} [Attributed to: ${input.performedBy || "unknown"}]`,
+            doctorId: null,
+            patientId: null,
+            soapNoteId: null,
+            ipAddress: input.ipAddress,
+            userAgent: input.userAgent,
+            outcome: input.outcome,
+            errorCode: input.errorCode,
+            errorMessage: input.errorMessage,
+            targetUserId: null,
+            exportType: input.exportType,
+            recordCount: input.recordCount,
+            exportScope: input.exportScope,
+            requestId: input.requestId,
+            environment: process.env.NODE_ENV || "development",
+          });
+        } else {
+          throw insertErr;
+        }
+      }
     } else {
       console.log(`[HIPAA Audit Log] Action: ${input.action} | Entity: ${input.entity} | Outcome: ${input.outcome}`);
     }

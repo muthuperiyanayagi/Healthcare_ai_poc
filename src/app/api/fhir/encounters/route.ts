@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import type { Encounter, EncounterStatus } from "@/lib/types";
+import { db } from "@/lib/db";
+import { encounters } from "../../../../../drizzle/schema";
+import { sql } from "drizzle-orm";
 
 function mapFhirStatus(status: string | undefined): EncounterStatus {
   if (status === "in-progress" || status === "planned" || status === "arrived") return "draft";
@@ -89,6 +92,49 @@ export async function GET(req: Request) {
       .map((entry: any) => entry.resource)
       .filter(Boolean)
       .map((resource: any) => mapFhirEncounter(resource, patient));
+
+    if (items.length > 0) {
+      try {
+        await db
+          .insert(encounters)
+          .values(
+            items.map((item) => ({
+              id: item.id,
+              patientId: item.patientId,
+              patientName: item.patientName,
+              age: item.age,
+              gender: item.gender,
+              chiefComplaint: item.chiefComplaint,
+              historyOfPresentIllness: item.historyOfPresentIllness,
+              pastMedicalHistory: item.pastMedicalHistory,
+              medications: item.medications,
+              allergies: item.allergies,
+              vitals: item.vitals,
+              examFindings: item.examFindings,
+              labs: item.labs,
+              assessmentNotes: item.assessmentNotes,
+              status: item.status,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt,
+            }))
+          )
+          .onConflictDoUpdate({
+            target: encounters.id,
+            set: {
+              patientName: sql`excluded.patient_name`,
+              age: sql`excluded.age`,
+              gender: sql`excluded.gender`,
+              chiefComplaint: sql`excluded.chief_complaint`,
+              status: sql`excluded.status`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+      } catch (cacheError) {
+        // Best-effort sync to Neon; the live EHR fetch already succeeded, so
+        // don't fail the request just because the write-through cache failed.
+        console.warn("Failed to sync encounters to Neon:", cacheError);
+      }
+    }
 
     return NextResponse.json({
       items,

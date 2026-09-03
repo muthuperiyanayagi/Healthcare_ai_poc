@@ -29,7 +29,8 @@ async function getDoctorId(req: Request): Promise<string | null> {
 
   if (!token) return null;
   const payload = await verifyToken(token);
-  return payload ? (payload as any).id || null : null;
+  const id = payload ? (payload as any).id || null : null;
+  return id ? toUuid(id) : null;
 }
 
 // GET /api/encounters/[id] - Retrieve single encounter details
